@@ -1,0 +1,6 @@
+{
+  "name": "WaqtApp",
+  "description": "Application de gestion de rendez-vous multi-secteurs publique, gratuite, bilingue arabe-français pour le Maroc.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

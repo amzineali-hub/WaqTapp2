@@ -1,0 +1,303 @@
+import React, { useState } from 'react';
+import { X, Calendar, Clock, User, Phone, FileText, CheckCircle, ShieldCheck, MapPin } from 'lucide-react';
+import { Professional, UserAppointment } from '../types';
+import { Language, translations } from '../utils/translations';
+
+interface BookingModalProps {
+  professional: Professional;
+  currentLang: Language;
+  onClose: () => void;
+  onConfirm: (appointment: Omit<UserAppointment, 'id' | 'createdTimestamp'>) => void;
+}
+
+export const BookingModal: React.FC<BookingModalProps> = ({
+  professional,
+  currentLang,
+  onClose,
+  onConfirm,
+}) => {
+  const t = translations[currentLang];
+  const b = t.bookingModal;
+
+  // Defaults
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  const defaultDate = tomorrow.toISOString().split('T')[0];
+
+  const [date, setDate] = useState(defaultDate);
+  const [time, setTime] = useState("10:00");
+  const [userName, setUserName] = useState("Mme / M. Client");
+  const [userPhone, setUserPhone] = useState("0661000000");
+  const [notes, setNotes] = useState("");
+  const [syncGoogleCalendar, setSyncGoogleCalendar] = useState(true);
+  const [needsReminders, setNeedsReminders] = useState(true);
+  const [paymentOption, setPaymentOption] = useState<'ON_SITE' | 'DEPOSIT' | 'FULL'>('ON_SITE');
+
+  const timeSlots = [
+    "09:00", "09:30", "10:00", "10:30", "11:00", "11:30",
+    "14:00", "14:30", "15:00", "15:30", "16:00", "16:30", "17:00"
+  ];
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userName.trim() || !userPhone.trim()) return;
+
+    let depositAmount = 0;
+    let paymentStatus: 'UNPAID' | 'DEPOSIT_PAID' | 'FULLY_PAID' = 'UNPAID';
+
+    if (paymentOption === 'DEPOSIT') {
+      depositAmount = Math.min(50, professional.fees);
+      paymentStatus = 'DEPOSIT_PAID';
+    } else if (paymentOption === 'FULL') {
+      depositAmount = professional.fees;
+      paymentStatus = 'FULLY_PAID';
+    }
+
+    onConfirm({
+      professionalId: professional.id,
+      professionalName: professional.name,
+      sector: professional.sector,
+      city: professional.city,
+      date,
+      time,
+      userName: userName.trim(),
+      userPhone: userPhone.trim(),
+      status: "CONFIRMED",
+      notes: notes.trim(),
+      syncGoogleCalendar,
+      needsReminders,
+      cost: professional.fees,
+      paymentStatus,
+      amountPaid: depositAmount,
+    });
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 my-8 animate-in fade-in zoom-in-95 duration-150">
+        
+        {/* Modal Header */}
+        <div className="bg-teal-700 text-white p-5 flex items-center justify-between">
+          <div>
+            <span className="text-xs uppercase tracking-wider font-semibold text-teal-200">
+              {currentLang === 'FR' ? professional.sectorFr : professional.sectorAr}
+            </span>
+            <h3 className="text-lg font-bold">{b.title}</h3>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-full text-teal-100 hover:text-white hover:bg-teal-600 transition"
+          >
+            <X className="w-6 h-6" />
+          </button>
+        </div>
+
+        {/* Professional Summary Card */}
+        <div className="bg-teal-50/70 p-4 border-b border-teal-100 flex items-start justify-between">
+          <div>
+            <h4 className="font-bold text-slate-900 text-base">{professional.name}</h4>
+            <p className="text-xs font-medium text-teal-700">
+              {currentLang === 'FR' ? professional.titleFr : professional.titleAr}
+            </p>
+            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+              <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+              {currentLang === 'FR' ? professional.addressFr : professional.addressAr}
+            </p>
+          </div>
+          <div className="text-right shrink-0">
+            <span className="text-xs text-slate-500 block">{t.freeConsultation}</span>
+            <span className="text-lg font-extrabold text-teal-800">
+              {professional.fees} {t.dh}
+            </span>
+          </div>
+        </div>
+
+        {/* Booking Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+          
+          {/* Date Picker */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-teal-600" />
+              {b.selectDate}
+            </label>
+            <input
+              type="date"
+              required
+              value={date}
+              min={new Date().toISOString().split('T')[0]}
+              onChange={(e) => setDate(e.target.value)}
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+            />
+          </div>
+
+          {/* Time Slot Picker */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+              <Clock className="w-4 h-4 text-teal-600" />
+              {b.selectTime}
+            </label>
+            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-36 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-200">
+              {timeSlots.map((slot) => (
+                <button
+                  type="button"
+                  key={slot}
+                  onClick={() => setTime(slot)}
+                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                    time === slot
+                      ? 'bg-teal-600 text-white shadow-xs'
+                      : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
+                  }`}
+                >
+                  {slot}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Client Details */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <User className="w-4 h-4 text-teal-600" />
+                {b.clientName}
+              </label>
+              <input
+                type="text"
+                required
+                value={userName}
+                onChange={(e) => setUserName(e.target.value)}
+                placeholder="Ex: Karim Benani"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+                <Phone className="w-4 h-4 text-teal-600" />
+                {b.clientPhone}
+              </label>
+              <input
+                type="tel"
+                required
+                value={userPhone}
+                onChange={(e) => setUserPhone(e.target.value)}
+                placeholder="06XXXXXXXX"
+                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              />
+            </div>
+          </div>
+
+          {/* Notes */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1 flex items-center gap-1.5">
+              <FileText className="w-4 h-4 text-teal-600" />
+              {b.notes}
+            </label>
+            <input
+              type="text"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Ex: Première consultation..."
+              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+            />
+          </div>
+
+          {/* Payment Method Selector */}
+          <div>
+            <label className="block text-xs font-bold text-slate-700 mb-1">
+              {b.paymentOption}
+            </label>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setPaymentOption('ON_SITE')}
+                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition ${
+                  paymentOption === 'ON_SITE'
+                    ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold ring-1 ring-teal-600'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <span>{b.payOnSite}</span>
+                <span className="block text-[10px] text-slate-500 mt-0.5">0 DH acompte</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentOption('DEPOSIT')}
+                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition ${
+                  paymentOption === 'DEPOSIT'
+                    ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold ring-1 ring-teal-600'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <span>{b.payDeposit}</span>
+                <span className="block text-[10px] text-slate-500 mt-0.5">Stripe / CMI Démo</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setPaymentOption('FULL')}
+                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition ${
+                  paymentOption === 'FULL'
+                    ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold ring-1 ring-teal-600'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                <span>{b.payFull}</span>
+                <span className="block text-[10px] text-slate-500 mt-0.5">{professional.fees} {t.dh}</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Sync & Reminders Toggles */}
+          <div className="bg-slate-50 p-3 rounded-xl space-y-2 text-xs text-slate-700">
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={syncGoogleCalendar}
+                onChange={(e) => setSyncGoogleCalendar(e.target.checked)}
+                className="w-4 h-4 text-teal-600 rounded-sm focus:ring-teal-500"
+              />
+              <span className="flex items-center gap-1 font-medium">
+                <CheckCircle className="w-3.5 h-3.5 text-teal-600" />
+                {b.googleCalendar}
+              </span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={needsReminders}
+                onChange={(e) => setNeedsReminders(e.target.checked)}
+                className="w-4 h-4 text-teal-600 rounded-sm focus:ring-teal-500"
+              />
+              <span className="flex items-center gap-1 font-medium">
+                <ShieldCheck className="w-3.5 h-3.5 text-teal-600" />
+                {b.reminders}
+              </span>
+            </label>
+          </div>
+
+          {/* Buttons */}
+          <div className="pt-2 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-xl transition"
+            >
+              {b.cancelBtn}
+            </button>
+            <button
+              type="submit"
+              className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md shadow-teal-600/20 transition flex items-center gap-2"
+            >
+              <CheckCircle className="w-4 h-4" />
+              {b.confirmBtn}
+            </button>
+          </div>
+
+        </form>
+
+      </div>
+    </div>
+  );
+};
