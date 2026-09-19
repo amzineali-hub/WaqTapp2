@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
-import { Search, MapPin, Phone, Star, CheckCircle, Calendar, ShieldCheck, XCircle, Clock, Check } from 'lucide-react';
+import { Search, MapPin, Phone, Star, CheckCircle, Calendar, ShieldCheck, XCircle, Clock, Check, Zap, BellRing } from 'lucide-react';
 import { Professional, SectorType, UserAppointment } from '../types';
 import { Language, translations } from '../utils/translations';
 import { BookingModal } from './BookingModal';
+import { isAppointmentWithinOneHour, getMinutesRemaining } from '../utils/appointmentAlerts';
 
 interface ClientViewProps {
   professionals: Professional[];
@@ -10,6 +11,9 @@ interface ClientViewProps {
   currentLang: Language;
   onBookAppointment: (appointment: Omit<UserAppointment, 'id' | 'createdTimestamp'>) => void;
   onCancelAppointment: (id: number) => void;
+  activeSubTab?: 'DIRECTORY' | 'MY_APPOINTMENTS';
+  onSubTabChange?: (tab: 'DIRECTORY' | 'MY_APPOINTMENTS') => void;
+  onSimulateUrgentAppointment?: () => void;
 }
 
 export const ClientView: React.FC<ClientViewProps> = ({
@@ -18,6 +22,9 @@ export const ClientView: React.FC<ClientViewProps> = ({
   currentLang,
   onBookAppointment,
   onCancelAppointment,
+  activeSubTab: controlledSubTab,
+  onSubTabChange,
+  onSimulateUrgentAppointment,
 }) => {
   const t = translations[currentLang];
 
@@ -25,7 +32,16 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [selectedSector, setSelectedSector] = useState<SectorType>('ALL');
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [bookingPro, setBookingPro] = useState<Professional | null>(null);
-  const [activeSubTab, setActiveSubTab] = useState<'DIRECTORY' | 'MY_APPOINTMENTS'>('DIRECTORY');
+  const [internalSubTab, setInternalSubTab] = useState<'DIRECTORY' | 'MY_APPOINTMENTS'>('DIRECTORY');
+
+  const activeSubTab = controlledSubTab ?? internalSubTab;
+  const handleSubTabClick = (tab: 'DIRECTORY' | 'MY_APPOINTMENTS') => {
+    if (onSubTabChange) {
+      onSubTabChange(tab);
+    } else {
+      setInternalSubTab(tab);
+    }
+  };
 
   // Filter professionals
   const filteredPros = professionals.filter((pro) => {
@@ -57,30 +73,30 @@ export const ClientView: React.FC<ClientViewProps> = ({
     <div className="space-y-6">
       
       {/* Sub-navigation: Annuaire vs Mes Rendez-vous */}
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-slate-200 pb-3 gap-2">
+        <div className="grid grid-cols-2 gap-2 w-full sm:w-auto">
           <button
-            onClick={() => setActiveSubTab('DIRECTORY')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold transition ${
+            onClick={() => handleSubTabClick('DIRECTORY')}
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition flex items-center justify-center text-center touch-manipulation min-h-[40px] ${
               activeSubTab === 'DIRECTORY'
-                ? 'bg-teal-600 text-white shadow-sm'
+                ? 'bg-teal-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            {currentLang === 'FR' ? '🔎 Trouver un Professionnel' : '🔎 دليل المهنيين والأطباء'}
+            {currentLang === 'FR' ? '🔎 Trouver un Pro' : '🔎 دليل المهنيين'}
           </button>
           <button
-            onClick={() => setActiveSubTab('MY_APPOINTMENTS')}
-            className={`px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 transition ${
+            onClick={() => handleSubTabClick('MY_APPOINTMENTS')}
+            className={`px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-bold flex items-center justify-center gap-1.5 sm:gap-2 transition text-center touch-manipulation min-h-[40px] ${
               activeSubTab === 'MY_APPOINTMENTS'
-                ? 'bg-teal-600 text-white shadow-sm'
+                ? 'bg-teal-600 text-white shadow-xs'
                 : 'bg-white text-slate-600 hover:bg-slate-100 border border-slate-200'
             }`}
           >
-            <Calendar className="w-4 h-4" />
-            {t.viewAppointments}
+            <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
+            <span className="truncate">{currentLang === 'FR' ? 'Mes Rendez-vous' : 'مواعيدي'}</span>
             {appointments.length > 0 && (
-              <span className="text-xs bg-amber-500 text-white px-2 py-0.5 rounded-full font-bold">
+              <span className="text-[10px] sm:text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold shrink-0">
                 {appointments.length}
               </span>
             )}
@@ -95,8 +111,8 @@ export const ClientView: React.FC<ClientViewProps> = ({
       {activeSubTab === 'DIRECTORY' ? (
         <>
           {/* Search Bar & City Selector */}
-          <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm space-y-3">
-            <div className="flex flex-col md:flex-row gap-3">
+          <div className="bg-white p-3.5 sm:p-4 rounded-2xl border border-slate-200 shadow-xs space-y-3">
+            <div className="flex flex-col sm:flex-row gap-2.5">
               <div className="relative flex-1">
                 <Search className="absolute left-3.5 top-3 w-4 h-4 text-slate-400" />
                 <input
@@ -104,36 +120,38 @@ export const ClientView: React.FC<ClientViewProps> = ({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={t.searchPlaceholder}
-                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
+                  className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-base sm:text-sm focus:outline-hidden focus:ring-2 focus:ring-teal-500 focus:bg-white transition"
                 />
               </div>
 
               {/* City filter dropdown */}
-              <div className="shrink-0 flex items-center gap-2">
-                <MapPin className="w-4 h-4 text-teal-600 shrink-0" />
-                <select
-                  value={selectedCity}
-                  onChange={(e) => setSelectedCity(e.target.value)}
-                  className="bg-slate-50 border border-slate-200 text-slate-700 text-sm font-medium rounded-xl px-3 py-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
-                >
-                  {citiesList.map((c) => (
-                    <option key={c} value={c}>
-                      {c === 'ALL' ? t.allCities : c}
-                    </option>
-                  ))}
-                </select>
+              <div className="flex items-center gap-2 w-full sm:w-auto">
+                <div className="relative w-full sm:w-auto flex items-center">
+                  <MapPin className="absolute left-3 w-4 h-4 text-teal-600 pointer-events-none" />
+                  <select
+                    value={selectedCity}
+                    onChange={(e) => setSelectedCity(e.target.value)}
+                    className="w-full sm:w-auto bg-slate-50 border border-slate-200 text-slate-700 text-base sm:text-sm font-medium rounded-xl pl-9 pr-8 py-2.5 focus:ring-2 focus:ring-teal-500 focus:outline-hidden appearance-none"
+                  >
+                    {citiesList.map((c) => (
+                      <option key={c} value={c}>
+                        {c === 'ALL' ? t.allCities : c}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
 
             {/* Category pills */}
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 no-scrollbar">
+            <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-1.5 pt-0.5 scrollbar-none touch-pan-x -mx-1 px-1">
               {categories.map((cat) => {
                 const isSelected = selectedSector === cat.id;
                 return (
                   <button
                     key={cat.id}
                     onClick={() => setSelectedSector(cat.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all touch-manipulation min-h-[36px] ${
                       isSelected
                         ? 'bg-teal-700 text-white shadow-xs scale-102'
                         : 'bg-slate-100 hover:bg-slate-200/80 text-slate-700'
@@ -252,15 +270,27 @@ export const ClientView: React.FC<ClientViewProps> = ({
         </>
       ) : (
         /* MY APPOINTMENTS SECTION */
-        <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-6 shadow-xs">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-4">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-teal-600" />
               {t.myAppointments}
             </h3>
-            <span className="text-xs bg-slate-100 text-slate-700 font-semibold px-2.5 py-1 rounded-lg">
-              {appointments.length} {currentLang === 'FR' ? 'rendez-vous' : 'موعد'}
-            </span>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2 w-full sm:w-auto">
+              {onSimulateUrgentAppointment && (
+                <button
+                  onClick={onSimulateUrgentAppointment}
+                  className="w-full sm:w-auto justify-center text-xs bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 font-bold px-3 py-2 sm:py-1.5 rounded-xl shadow-xs transition flex items-center gap-1.5 touch-manipulation min-h-[36px]"
+                  title={currentLang === 'FR' ? "Créer un rendez-vous dans 50 min pour tester l'alerte visuelle 1h" : "إنشاء موعد تجريبي بعد 50 دقيقة"}
+                >
+                  <Zap className="w-3.5 h-3.5 text-amber-600 fill-amber-500" />
+                  <span>{t.appointmentAlert?.simulateBtn || (currentLang === 'FR' ? "Simuler un RDV dans 50 min" : "تجربة موعد بعد 50 دقيقة")}</span>
+                </button>
+              )}
+              <span className="text-xs bg-slate-100 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg text-center">
+                {appointments.length} {currentLang === 'FR' ? 'rendez-vous' : 'موعد'}
+              </span>
+            </div>
           </div>
 
           {appointments.length === 0 ? (
@@ -272,7 +302,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                   : 'ليس لديكم أي موعد مسجل في الوقت الحالي.'}
               </p>
               <button
-                onClick={() => setActiveSubTab('DIRECTORY')}
+                onClick={() => handleSubTabClick('DIRECTORY')}
                 className="mt-3 px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl shadow-xs"
               >
                 {t.bookBtn}
@@ -280,77 +310,102 @@ export const ClientView: React.FC<ClientViewProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {appointments.map((app) => (
-                <div
-                  key={app.id}
-                  className="p-4 rounded-xl border border-slate-200 hover:border-slate-300 transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-slate-50/50"
-                >
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-bold text-slate-900 text-sm">{app.professionalName}</span>
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          app.status === 'CONFIRMED'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : app.status === 'COMPLETED'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-rose-100 text-rose-800'
-                        }`}
-                      >
-                        {t.appointmentStatus[app.status]}
-                      </span>
-                    </div>
+              {appointments.map((app) => {
+                const isUrgent = isAppointmentWithinOneHour(app);
+                const minutesLeft = getMinutesRemaining(app);
 
-                    <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
-                      <span className="flex items-center gap-1 font-semibold text-slate-800">
-                        <Calendar className="w-3.5 h-3.5 text-teal-600" />
-                        {app.date}
-                      </span>
-                      <span className="flex items-center gap-1 font-semibold text-slate-800">
-                        <Clock className="w-3.5 h-3.5 text-teal-600" />
-                        {app.time}
-                      </span>
-                      <span className="flex items-center gap-1 text-slate-500">
-                        <MapPin className="w-3.5 h-3.5 text-slate-400" />
-                        {app.city}
-                      </span>
-                    </div>
-
-                    {app.notes && (
-                      <p className="text-xs text-slate-500 italic mt-1">"{app.notes}"</p>
-                    )}
-
-                    <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500">
-                      <span>Tarif: {app.cost} {t.dh}</span>
-                      <span>•</span>
-                      <span>
-                        Paiement: {app.paymentStatus === 'FULLY_PAID' ? 'Réglé' : app.paymentStatus === 'DEPOSIT_PAID' ? `Acompte (${app.amountPaid} DH)` : 'Sur place'}
-                      </span>
-                      {app.syncGoogleCalendar && (
-                        <>
-                          <span>•</span>
-                          <span className="text-teal-700 font-semibold flex items-center gap-1">
-                            <Check className="w-3 h-3" />
-                            Google Calendar
+                return (
+                  <div
+                    key={app.id}
+                    className={`p-4 rounded-xl border transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                      isUrgent
+                        ? 'border-amber-400 bg-amber-50/40 ring-2 ring-amber-300 shadow-md relative'
+                        : 'border-slate-200 hover:border-slate-300 bg-slate-50/50'
+                    }`}
+                  >
+                    <div className="space-y-1.5 flex-1">
+                      {isUrgent && (
+                        <div className="mb-2 flex items-center justify-between gap-2 bg-gradient-to-r from-amber-500 to-orange-500 text-white px-3 py-1 rounded-lg text-xs font-bold shadow-xs">
+                          <div className="flex items-center gap-1.5">
+                            <BellRing className="w-3.5 h-3.5 animate-bounce shrink-0" />
+                            <span>
+                              {currentLang === 'FR'
+                                ? `⏰ Alerte 1 Heure : ${minutesLeft !== null && minutesLeft > 0 ? `Commence dans ${minutesLeft} min` : 'Commence maintenant !'} — Préparez votre départ.`
+                                : `⏰ تنبيه ساعة واحدة : ${minutesLeft !== null && minutesLeft > 0 ? `يبدأ خلال ${minutesLeft} دقيقة` : 'يبدأ الآن !'} — يرجى الاستعداد.`}
+                            </span>
+                          </div>
+                          <span className="bg-white/25 text-white text-[10px] uppercase tracking-wider px-2 py-0.5 rounded font-black">
+                            {currentLang === 'FR' ? 'Imminent' : 'عاجل'}
                           </span>
-                        </>
+                        </div>
                       )}
-                    </div>
-                  </div>
 
-                  {app.status === 'CONFIRMED' && (
-                    <div className="shrink-0 flex items-center gap-2">
-                      <button
-                        onClick={() => onCancelAppointment(app.id)}
-                        className="px-3 py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-lg border border-rose-200 transition flex items-center gap-1"
-                      >
-                        <XCircle className="w-3.5 h-3.5" />
-                        {currentLang === 'FR' ? 'Annuler' : 'إلغاء'}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <span className="font-bold text-slate-900 text-sm">{app.professionalName}</span>
+                        <span
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                            app.status === 'CONFIRMED'
+                              ? 'bg-emerald-100 text-emerald-800'
+                              : app.status === 'COMPLETED'
+                              ? 'bg-blue-100 text-blue-800'
+                              : 'bg-rose-100 text-rose-800'
+                          }`}
+                        >
+                          {t.appointmentStatus[app.status]}
+                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-600">
+                        <span className="flex items-center gap-1 font-semibold text-slate-800">
+                          <Calendar className="w-3.5 h-3.5 text-teal-600" />
+                          {app.date}
+                        </span>
+                        <span className="flex items-center gap-1 font-semibold text-slate-800">
+                          <Clock className="w-3.5 h-3.5 text-teal-600" />
+                          {app.time}
+                        </span>
+                        <span className="flex items-center gap-1 text-slate-500">
+                          <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                          {app.city}
+                        </span>
+                      </div>
+
+                      {app.notes && (
+                        <p className="text-xs text-slate-500 italic mt-1">"{app.notes}"</p>
+                      )}
+
+                      <div className="flex items-center gap-2 pt-1 text-[11px] text-slate-500">
+                        <span>Tarif: {app.cost} {t.dh}</span>
+                        <span>•</span>
+                        <span>
+                          Paiement: {app.paymentStatus === 'FULLY_PAID' ? 'Réglé' : app.paymentStatus === 'DEPOSIT_PAID' ? `Acompte (${app.amountPaid} DH)` : 'Sur place'}
+                        </span>
+                        {app.syncGoogleCalendar && (
+                          <>
+                            <span>•</span>
+                            <span className="text-teal-700 font-semibold flex items-center gap-1">
+                              <Check className="w-3 h-3" />
+                              Google Calendar
+                            </span>
+                          </>
+                        )}
+                      </div>
                     </div>
-                  )}
-                </div>
-              ))}
+
+                    {app.status === 'CONFIRMED' && (
+                      <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <button
+                          onClick={() => onCancelAppointment(app.id)}
+                          className="w-full sm:w-auto justify-center px-3 py-2 sm:py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center gap-1.5 touch-manipulation min-h-[36px]"
+                        >
+                          <XCircle className="w-3.5 h-3.5" />
+                          {currentLang === 'FR' ? 'Annuler le rendez-vous' : 'إلغاء الموعد'}
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
@@ -365,7 +420,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
           onConfirm={(appointmentData) => {
             onBookAppointment(appointmentData);
             setBookingPro(null);
-            setActiveSubTab('MY_APPOINTMENTS');
+            handleSubTabClick('MY_APPOINTMENTS');
           }}
         />
       )}

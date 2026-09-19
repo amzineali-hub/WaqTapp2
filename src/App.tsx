@@ -4,6 +4,7 @@ import { ClientView } from './components/ClientView';
 import { ProfessionalView } from './components/ProfessionalView';
 import { AdminDirectoryView } from './components/AdminDirectoryView';
 import { NotificationModal } from './components/NotificationModal';
+import { UpcomingAppointmentAlert } from './components/UpcomingAppointmentAlert';
 import {
   getStoredProfessionals,
   saveStoredProfessionals,
@@ -17,12 +18,22 @@ import {
 } from './utils/storage';
 import { Professional, UserAppointment, AppNotification, StaffMember } from './types';
 import { Language } from './utils/translations';
+import {
+  isAppointmentWithinOneHour,
+  getMinutesRemaining,
+  getNotified1hAlerts,
+  mark1hAlertAsNotified,
+  playAlertChime,
+  sendBrowserNotification,
+} from './utils/appointmentAlerts';
 import { ShieldCheck, Zap } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentLang, setCurrentLang] = useState<Language>('FR');
   const [activeTab, setActiveTab] = useState<'CITOYEN' | 'PRO' | 'ADMIN'>('CITOYEN');
+  const [clientSubTab, setClientSubTab] = useState<'DIRECTORY' | 'MY_APPOINTMENTS'>('DIRECTORY');
   const [showNotificationModal, setShowNotificationModal] = useState(false);
+  const [dismissed1hAlertIds, setDismissed1hAlertIds] = useState<number[]>([]);
 
   // Core app state
   const [professionals, setProfessionals] = useState<Professional[]>(getStoredProfessionals);
@@ -57,6 +68,55 @@ export const App: React.FC = () => {
     saveStoredStaff(staff);
   }, [staff]);
 
+  // Automated 1-hour appointment alert scanner (runs on change and every 20 seconds)
+  useEffect(() => {
+    const scanAppointmentsFor1hAlert = () => {
+      const now = Date.now();
+      const notifiedList = getNotified1hAlerts();
+
+      appointments.forEach((app) => {
+        if (app.status === 'CONFIRMED' && isAppointmentWithinOneHour(app, now)) {
+          // If we haven't triggered the 1-hour alert for this appointment yet
+          if (!notifiedList.includes(app.id)) {
+            mark1hAlertAsNotified(app.id);
+
+            const minutesLeft = getMinutesRemaining(app, now);
+            const timeDiffLabel =
+              minutesLeft !== null && minutesLeft > 0 ? `dans ${minutesLeft} min` : 'imminent';
+            const timeDiffLabelAr =
+              minutesLeft !== null && minutesLeft > 0 ? `خلال ${minutesLeft} دقيقة` : 'الآن';
+
+            // Add visual notification to notifications center
+            addNotification(
+              `⏰ Rappel 1h : Rendez-vous avec ${app.professionalName}`,
+              `⏰ تذكير قبل ساعة : موعدكم مع ${app.professionalName}`,
+              `Votre rendez-vous prévu à ${app.time} (${timeDiffLabel}) à ${app.city} approche. Préparez votre départ !`,
+              `موعدكم المحدد على الساعة ${app.time} (${timeDiffLabelAr}) بمدينة ${app.city} يقترب. يرجى الاستعداد والتوجه إلى العنوان.`
+            );
+
+            // Play alert sound chime
+            playAlertChime();
+
+            // Send native browser desktop notification
+            sendBrowserNotification(
+              `WaqtApp - Rendez-vous dans 1 heure !`,
+              `Votre rendez-vous avec ${app.professionalName} commence à ${app.time}.`
+            );
+          }
+        }
+      });
+    };
+
+    scanAppointmentsFor1hAlert();
+    const interval = setInterval(scanAppointmentsFor1hAlert, 20000);
+    return () => clearInterval(interval);
+  }, [appointments]);
+
+  // Compute urgent appointments (within 1 hour and not dismissed in current view)
+  const urgentAppointments = appointments.filter(
+    (app) => isAppointmentWithinOneHour(app) && !dismissed1hAlertIds.includes(app.id)
+  );
+
   // Add notification helper
   const addNotification = (titleFr: string, titleAr: string, messageFr: string, messageAr: string) => {
     const newNotif: AppNotification = {
@@ -69,6 +129,60 @@ export const App: React.FC = () => {
       isRead: false,
     };
     setNotifications((prev) => [newNotif, ...prev]);
+  };
+
+  // Helper to simulate an urgent appointment scheduled in 50 minutes (for testing the 1-hour alert)
+  const handleSimulateUrgentAppointment = () => {
+    const now = new Date();
+    const in50m = new Date(now.getTime() + 50 * 60 * 1000);
+    const dateStr = in50m.toISOString().split('T')[0];
+    const hours = String(in50m.getHours()).padStart(2, '0');
+    const mins = String(in50m.getMinutes()).padStart(2, '0');
+    const timeStr = `${hours}:${mins}`;
+
+    const pro = professionals[0] || {
+      id: 1,
+      name: 'Dr. Ali Alami',
+      city: 'Casablanca',
+      fees: 300,
+      sector: 'HEALTH',
+    };
+
+    const testApp: UserAppointment = {
+      id: Date.now(),
+      professionalId: pro.id,
+      professionalName: pro.name,
+      sector: pro.sector || 'HEALTH',
+      city: pro.city || 'Casablanca',
+      date: dateStr,
+      time: timeStr,
+      userName: 'Karim Idrissi',
+      userPhone: '0661223344',
+      status: 'CONFIRMED',
+      notes: "Rendez-vous test pour démonstration de l'alerte 1 heure avant",
+      syncGoogleCalendar: true,
+      needsReminders: true,
+      cost: pro.fees || 300,
+      paymentStatus: 'DEPOSIT_PAID',
+      amountPaid: 50,
+      createdTimestamp: Date.now(),
+    };
+
+    setAppointments((prev) => [testApp, ...prev]);
+    setActiveTab('CITOYEN');
+    setClientSubTab('MY_APPOINTMENTS');
+
+    // Reset dismissed state for this appointment if needed
+    setDismissed1hAlertIds((prev) => prev.filter((id) => id !== testApp.id));
+  };
+
+  const handleViewUrgentAppointment = (_app: UserAppointment) => {
+    setActiveTab('CITOYEN');
+    setClientSubTab('MY_APPOINTMENTS');
+  };
+
+  const handleDismissUrgentAlert = (appId: number) => {
+    setDismissed1hAlertIds((prev) => [...prev, appId]);
   };
 
   // Client actions
@@ -189,18 +303,26 @@ export const App: React.FC = () => {
         onOpenNotifications={() => setShowNotificationModal(true)}
       />
 
+      {/* Visual 1-Hour Upcoming Appointment Alert Banner */}
+      <UpcomingAppointmentAlert
+        urgentAppointments={urgentAppointments}
+        currentLang={currentLang}
+        onViewAppointment={handleViewUrgentAppointment}
+        onDismiss={handleDismissUrgentAlert}
+      />
+
       {/* Demo Mode Notice Banner */}
-      <div className="bg-teal-700 text-white text-xs py-2 px-4 shadow-inner">
+      <div className="bg-teal-700 text-white text-xs py-2 px-3 sm:px-4 shadow-inner">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-medium">
             <Zap className="w-4 h-4 text-amber-300 shrink-0" />
-            <span>
+            <span className="leading-snug">
               {currentLang === 'FR'
-                ? "Plateforme en Accès Public Libre : Pas d'inscription ni d'e-mail requis pour tester le parcours Citoyen, Pro ou Admin !"
-                : "منصة مفتوحة للجميع بدون تسجيل دخول أو بريد إلكتروني: تجربة حرة ومباشرة لكافة الخدمات !"}
+                ? "Plateforme en Accès Public Libre : Pas d'inscription requise pour tester !"
+                : "منصة مفتوحة للجميع بدون تسجيل دخول أو بريد إلكتروني !"}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-teal-100 bg-teal-800/60 px-2.5 py-0.5 rounded-full border border-teal-600/60">
+          <div className="flex items-center gap-1 text-[11px] text-teal-100 bg-teal-800/60 px-2.5 py-0.5 rounded-full border border-teal-600/60 shrink-0">
             <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
             <span>{currentLang === 'FR' ? 'Démo Active' : 'وضع تجريبي نشط'}</span>
           </div>
@@ -208,7 +330,7 @@ export const App: React.FC = () => {
       </div>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
         {activeTab === 'CITOYEN' && (
           <ClientView
             professionals={professionals}
@@ -216,6 +338,9 @@ export const App: React.FC = () => {
             currentLang={currentLang}
             onBookAppointment={handleBookAppointment}
             onCancelAppointment={handleCancelAppointment}
+            activeSubTab={clientSubTab}
+            onSubTabChange={setClientSubTab}
+            onSimulateUrgentAppointment={handleSimulateUrgentAppointment}
           />
         )}
 

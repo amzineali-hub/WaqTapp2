@@ -73,47 +73,47 @@ export const BookingModal: React.FC<BookingModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-4 overflow-y-auto">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden border border-slate-200 my-8 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-xs p-3 sm:p-4 overflow-y-auto">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[92vh] flex flex-col overflow-hidden border border-slate-200 my-auto animate-in fade-in zoom-in-95 duration-150">
         
         {/* Modal Header */}
-        <div className="bg-teal-700 text-white p-5 flex items-center justify-between">
+        <div className="bg-teal-700 text-white p-4 sm:p-5 flex items-center justify-between shrink-0">
           <div>
-            <span className="text-xs uppercase tracking-wider font-semibold text-teal-200">
+            <span className="text-[10px] sm:text-xs uppercase tracking-wider font-semibold text-teal-200">
               {currentLang === 'FR' ? professional.sectorFr : professional.sectorAr}
             </span>
-            <h3 className="text-lg font-bold">{b.title}</h3>
+            <h3 className="text-base sm:text-lg font-bold">{b.title}</h3>
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-teal-100 hover:text-white hover:bg-teal-600 transition"
+            className="p-1.5 rounded-full text-teal-100 hover:text-white hover:bg-teal-600 transition min-h-[36px] min-w-[36px] flex items-center justify-center touch-manipulation"
           >
-            <X className="w-6 h-6" />
+            <X className="w-5 h-5 sm:w-6 sm:h-6" />
           </button>
         </div>
 
         {/* Professional Summary Card */}
-        <div className="bg-teal-50/70 p-4 border-b border-teal-100 flex items-start justify-between">
+        <div className="bg-teal-50/70 p-3.5 sm:p-4 border-b border-teal-100 flex items-start justify-between shrink-0 gap-3">
           <div>
-            <h4 className="font-bold text-slate-900 text-base">{professional.name}</h4>
+            <h4 className="font-bold text-slate-900 text-sm sm:text-base">{professional.name}</h4>
             <p className="text-xs font-medium text-teal-700">
               {currentLang === 'FR' ? professional.titleFr : professional.titleAr}
             </p>
-            <p className="text-xs text-slate-500 mt-1 flex items-center gap-1">
+            <p className="text-[11px] sm:text-xs text-slate-500 mt-1 flex items-center gap-1">
               <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
               {currentLang === 'FR' ? professional.addressFr : professional.addressAr}
             </p>
           </div>
           <div className="text-right shrink-0">
-            <span className="text-xs text-slate-500 block">{t.freeConsultation}</span>
-            <span className="text-lg font-extrabold text-teal-800">
+            <span className="text-[11px] sm:text-xs text-slate-500 block">{t.freeConsultation}</span>
+            <span className="text-base sm:text-lg font-extrabold text-teal-800">
               {professional.fees} {t.dh}
             </span>
           </div>
         </div>
 
-        {/* Booking Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4">
+        {/* Booking Form (Scrollable body) */}
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 overflow-y-auto flex-1">
           
           {/* Date Picker */}
           <div>
@@ -127,7 +127,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               value={date}
               min={new Date().toISOString().split('T')[0]}
               onChange={(e) => setDate(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
             />
           </div>
 
@@ -137,15 +137,15 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <Clock className="w-4 h-4 text-teal-600" />
               {b.selectTime}
             </label>
-            <div className="grid grid-cols-4 sm:grid-cols-5 gap-2 max-h-36 overflow-y-auto p-1 bg-slate-50 rounded-xl border border-slate-200">
+            <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-1.5 sm:gap-2 max-h-36 overflow-y-auto p-1.5 bg-slate-50 rounded-xl border border-slate-200">
               {timeSlots.map((slot) => (
                 <button
                   type="button"
                   key={slot}
                   onClick={() => setTime(slot)}
-                  className={`py-1.5 text-xs font-semibold rounded-lg transition ${
+                  className={`py-2 text-xs font-semibold rounded-lg transition touch-manipulation min-h-[36px] ${
                     time === slot
-                      ? 'bg-teal-600 text-white shadow-xs'
+                      ? 'bg-teal-600 text-white shadow-xs font-bold'
                       : 'bg-white text-slate-700 hover:bg-slate-200 border border-slate-200'
                   }`}
                 >
@@ -168,7 +168,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 value={userName}
                 onChange={(e) => setUserName(e.target.value)}
                 placeholder="Ex: Karim Benani"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
               />
             </div>
             <div>
@@ -182,7 +182,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 value={userPhone}
                 onChange={(e) => setUserPhone(e.target.value)}
                 placeholder="06XXXXXXXX"
-                className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
               />
             </div>
           </div>
@@ -198,7 +198,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="Ex: Première consultation..."
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl text-base sm:text-sm focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
             />
           </div>
 
@@ -211,7 +211,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <button
                 type="button"
                 onClick={() => setPaymentOption('ON_SITE')}
-                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition ${
+                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition touch-manipulation ${
                   paymentOption === 'ON_SITE'
                     ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold ring-1 ring-teal-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
@@ -224,7 +224,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <button
                 type="button"
                 onClick={() => setPaymentOption('DEPOSIT')}
-                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition ${
+                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition touch-manipulation ${
                   paymentOption === 'DEPOSIT'
                     ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold ring-1 ring-teal-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
@@ -237,7 +237,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
               <button
                 type="button"
                 onClick={() => setPaymentOption('FULL')}
-                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition ${
+                className={`p-2.5 rounded-xl border text-xs font-medium text-left transition touch-manipulation ${
                   paymentOption === 'FULL'
                     ? 'border-teal-600 bg-teal-50 text-teal-900 font-bold ring-1 ring-teal-600'
                     : 'border-slate-200 hover:bg-slate-50 text-slate-700'
@@ -251,7 +251,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
 
           {/* Sync & Reminders Toggles */}
           <div className="bg-slate-50 p-3 rounded-xl space-y-2 text-xs text-slate-700">
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-2 cursor-pointer touch-manipulation">
               <input
                 type="checkbox"
                 checked={syncGoogleCalendar}
@@ -263,7 +263,7 @@ export const BookingModal: React.FC<BookingModalProps> = ({
                 {b.googleCalendar}
               </span>
             </label>
-            <label className="flex items-center gap-2 cursor-pointer">
+            <label className="flex items-center gap-2 cursor-pointer touch-manipulation">
               <input
                 type="checkbox"
                 checked={needsReminders}
@@ -278,17 +278,17 @@ export const BookingModal: React.FC<BookingModalProps> = ({
           </div>
 
           {/* Buttons */}
-          <div className="pt-2 flex items-center justify-end gap-3">
+          <div className="pt-2 flex flex-col-reverse sm:flex-row items-center justify-end gap-2 sm:gap-3 shrink-0">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-xl transition"
+              className="w-full sm:w-auto px-4 py-2.5 text-sm font-semibold text-slate-600 hover:text-slate-900 rounded-xl transition text-center min-h-[40px] touch-manipulation"
             >
               {b.cancelBtn}
             </button>
             <button
               type="submit"
-              className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md shadow-teal-600/20 transition flex items-center gap-2"
+              className="w-full sm:w-auto px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-sm rounded-xl shadow-md shadow-teal-600/20 transition flex items-center justify-center gap-2 min-h-[40px] touch-manipulation"
             >
               <CheckCircle className="w-4 h-4" />
               {b.confirmBtn}

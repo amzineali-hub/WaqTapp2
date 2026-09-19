@@ -67,23 +67,23 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
     <div className="space-y-6">
       
       {/* Header Banner */}
-      <div className="bg-gradient-to-r from-teal-800 to-teal-950 text-white rounded-2xl p-6 shadow-md relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-gradient-to-r from-teal-800 to-teal-950 text-white rounded-2xl p-4 sm:p-6 shadow-md relative overflow-hidden">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div>
-            <span className="text-xs font-bold text-teal-300 uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-teal-900/80 border border-teal-700 inline-block mb-2">
+            <span className="text-[11px] font-bold text-teal-300 uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-teal-900/80 border border-teal-700 inline-block mb-2">
               {currentLang === 'FR' ? currentPro.titleFr : currentPro.titleAr}
             </span>
-            <h2 className="text-2xl font-extrabold">{currentPro.name}</h2>
+            <h2 className="text-xl sm:text-2xl font-extrabold">{currentPro.name}</h2>
             <p className="text-teal-100/80 text-xs mt-1">
               {currentPro.addressFr} • {currentPro.city}
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="bg-white/10 backdrop-blur-md px-4 py-2.5 rounded-xl border border-white/10">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+            <div className="bg-white/10 backdrop-blur-md px-3.5 py-2 rounded-xl border border-white/10">
               <span className="text-[10px] text-teal-200 block">{p.currentPlan}</span>
-              <span className="text-sm font-bold flex items-center gap-1.5 text-white">
-                <Sparkles className="w-4 h-4 text-amber-400" />
+              <span className="text-xs sm:text-sm font-bold flex items-center gap-1.5 text-white">
+                <Sparkles className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-amber-400" />
                 {currentPro.subscriptionPlan === 'MAWID_PRO_YEARLY'
                   ? p.yearlyPlan
                   : currentPro.subscriptionPlan === 'MAWID_PRO_MONTHLY'
@@ -93,7 +93,7 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
             </div>
             <button
               onClick={() => setShowUpgradeModal(true)}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold text-xs rounded-xl shadow-lg transition"
+              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold text-xs rounded-xl shadow-lg transition text-center touch-manipulation min-h-[40px] flex items-center justify-center"
             >
               {p.upgradeBtn}
             </button>
@@ -167,8 +167,8 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
             <p>{currentLang === 'FR' ? 'Aucun rendez-vous pour ce professionnel.' : 'لا توجد مواعيد لهذا المهني حالياً.'}</p>
           </div>
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs text-slate-600">
+          <div className="overflow-x-auto -mx-4 sm:mx-0 px-4 sm:px-0">
+            <table className="w-full text-left text-xs text-slate-600 min-w-[580px]">
               <thead className="bg-slate-50 text-slate-700 uppercase tracking-wider text-[10px] font-bold border-b border-slate-200">
                 <tr>
                   <th className="py-3 px-4">{currentLang === 'FR' ? 'Client' : 'الزبون'}</th>

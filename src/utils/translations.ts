@@ -98,6 +98,16 @@ export const translations = {
       empty: "Aucune notification pour le moment",
       markAllRead: "Tout marquer comme lu",
       clearAll: "Effacer tout",
+    },
+    appointmentAlert: {
+      urgentBadge: "Rappel Urgent (1 Heure)",
+      startsIn: "Rendez-vous dans",
+      startsNow: "Le rendez-vous commence maintenant !",
+      alertTitle: "Rappel de Rendez-vous imminent",
+      dismiss: "J'ai compris",
+      viewBtn: "Voir le rendez-vous",
+      simulateBtn: "Simuler un RDV dans 50 min (Test Alerte 1h)",
+      prepareDeparture: "Préparez votre départ vers le cabinet !",
     }
   },
   AR: {
@@ -197,6 +207,16 @@ export const translations = {
       empty: "لا توجد إشعارات حالياً",
       markAllRead: "تحديد الكل كمقروء",
       clearAll: "مسح الكل",
+    },
+    appointmentAlert: {
+      urgentBadge: "تذكير عاجل (ساعة واحدة)",
+      startsIn: "الموعد يبدأ خلال",
+      startsNow: "الموعد يبدأ الآن !",
+      alertTitle: "تنبيه اقتراب موعدكم",
+      dismiss: "تم الفهم",
+      viewBtn: "عرض تفاصيل الموعد",
+      simulateBtn: "تجربة موعد بعد 50 دقيقة (محاكاة التنبيه)",
+      prepareDeparture: "يرجى الاستعداد والتوجه إلى مكان الموعد !",
     }
   }
 };

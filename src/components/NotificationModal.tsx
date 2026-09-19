@@ -21,11 +21,11 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
   const t = translations[currentLang];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-3 sm:p-4">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[88vh] flex flex-col overflow-hidden border border-slate-200 animate-in fade-in zoom-in-95 duration-150 my-auto">
         
         {/* Header */}
-        <div className="p-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="p-4 bg-slate-900 text-white flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2">
             <Bell className="w-5 h-5 text-teal-400" />
             <h3 className="font-bold text-base">{t.notifications.title}</h3>
@@ -37,14 +37,14 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
           </div>
           <button
             onClick={onClose}
-            className="p-1 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 transition"
+            className="p-1.5 rounded-full text-slate-300 hover:text-white hover:bg-slate-800 transition min-h-[36px] min-w-[36px] flex items-center justify-center touch-manipulation"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content list */}
-        <div className="max-h-96 overflow-y-auto p-4 space-y-3 divide-y divide-slate-100">
+        <div className="overflow-y-auto p-4 space-y-3 divide-y divide-slate-100 flex-1">
           {notifications.length === 0 ? (
             <div className="text-center py-8 text-slate-400 text-sm">
               <Bell className="w-8 h-8 mx-auto mb-2 opacity-40" />
@@ -77,17 +77,17 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
 
         {/* Footer Actions */}
         {notifications.length > 0 && (
-          <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs">
+          <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs shrink-0">
             <button
               onClick={onMarkAllAsRead}
-              className="flex items-center gap-1 text-teal-700 hover:text-teal-900 font-semibold transition"
+              className="flex items-center gap-1 text-teal-700 hover:text-teal-900 font-semibold transition py-1.5 px-2 rounded-lg touch-manipulation min-h-[36px]"
             >
               <Check className="w-3.5 h-3.5" />
               {t.notifications.markAllRead}
             </button>
             <button
               onClick={onClearAll}
-              className="flex items-center gap-1 text-rose-600 hover:text-rose-800 font-semibold transition"
+              className="flex items-center gap-1 text-rose-600 hover:text-rose-800 font-semibold transition py-1.5 px-2 rounded-lg touch-manipulation min-h-[36px]"
             >
               <Trash2 className="w-3.5 h-3.5" />
               {t.notifications.clearAll}
