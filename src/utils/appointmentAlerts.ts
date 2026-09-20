@@ -1,113 +1,136 @@
-import { supabase } from '../lib/supabaseClient';
 import { UserAppointment } from '../types';
 
-function mapRow(row: any): UserAppointment {
-  return {
-    id: row.id,
-    professionalId: row.professional_id,
-    professionalName: row.professional_name,
-    sector: row.sector,
-    city: row.city,
-    date: row.appointment_date,
-    time: row.appointment_time,
-    userName: row.user_name,
-    userPhone: row.user_phone,
-    status: row.status,
-    notes: row.notes || '',
-    syncGoogleCalendar: !!row.sync_google_calendar,
-    needsReminders: !!row.needs_reminders,
-    cost: Number(row.cost) || 0,
-    paymentStatus: row.payment_status || 'UNPAID',
-    amountPaid: Number(row.amount_paid) || 0,
-    createdTimestamp: row.created_at ? new Date(row.created_at).getTime() : Date.now(),
-  };
+const NOTIFIED_KEY = 'waqtapp_notified_1h_alerts';
+
+/**
+ * Parses appointment date & time safely into a JavaScript Date object.
+ */
+export function parseAppointmentDateTime(dateStr: string, timeStr: string): Date | null {
+  if (!dateStr || !timeStr) return null;
+  try {
+    let year = 0;
+    let month = 0;
+    let day = 0;
+
+    if (dateStr.includes('-')) {
+      const parts = dateStr.split('-').map(Number);
+      if (parts[0] > 1000) {
+        [year, month, day] = parts;
+      } else {
+        [day, month, year] = parts;
+      }
+    } else if (dateStr.includes('/')) {
+      const parts = dateStr.split('/').map(Number);
+      [day, month, year] = parts;
+    } else {
+      return null;
+    }
+
+    const [hours, minutes] = timeStr.split(':').map(Number);
+    if (isNaN(year) || isNaN(month) || isNaN(day) || isNaN(hours) || isNaN(minutes)) {
+      return null;
+    }
+
+    return new Date(year, month - 1, day, hours, minutes, 0, 0);
+  } catch {
+    return null;
+  }
 }
 
 /**
- * Rendez-vous visibles par le professionnel actuellement connecté
- * (RLS : uniquement ceux de son propre cabinet).
+ * Calculates how many minutes remain until the appointment.
+ * Returns null if parsing fails.
+ * Positive number = minutes in the future.
+ * Negative number = minutes in the past.
  */
-export async function fetchAppointmentsForOwner(): Promise<UserAppointment[]> {
-  const { data, error } = await supabase
-    .from('appointments')
-    .select('*')
-    .order('created_at', { ascending: false });
+export function getMinutesRemaining(app: UserAppointment, now = Date.now()): number | null {
+  const dt = parseAppointmentDateTime(app.date, app.time);
+  if (!dt) return null;
+  const diffMs = dt.getTime() - now;
+  return Math.floor(diffMs / (60 * 1000));
+}
 
-  if (error) {
-    console.error('fetchAppointmentsForOwner error', error);
+/**
+ * Checks if an appointment is scheduled within the 1-hour window (<= 60 mins away and not finished).
+ */
+export function isAppointmentWithinOneHour(app: UserAppointment, now = Date.now()): boolean {
+  if (app.status !== 'CONFIRMED') return false;
+  const minutes = getMinutesRemaining(app, now);
+  if (minutes === null) return false;
+  // Trigger between 60 minutes before and up to 10 minutes after scheduled start
+  return minutes <= 60 && minutes >= -10;
+}
+
+/**
+ * Retrieve list of appointment IDs for which the 1-hour notification has already been triggered.
+ */
+export function getNotified1hAlerts(): number[] {
+  try {
+    const raw = localStorage.getItem(NOTIFIED_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch {
     return [];
   }
-  return (data || []).map(mapRow);
 }
 
 /**
- * Rendez-vous d'un client, retrouvés uniquement via son numéro de
- * téléphone (fonction RPC sécurisée côté serveur — aucun accès direct
- * à la table n'est nécessaire ni possible pour un visiteur anonyme).
+ * Record that an appointment has had its 1-hour notification triggered.
  */
-export async function fetchMyAppointments(phone: string): Promise<UserAppointment[]> {
-  const { data, error } = await supabase.rpc('get_my_appointments', { p_phone: phone });
-  if (error) {
-    console.error('fetchMyAppointments error', error);
-    return [];
-  }
-  return (data || []).map(mapRow);
-}
-
-export async function bookAppointment(
-  appointment: Omit<UserAppointment, 'id' | 'createdTimestamp'>
-): Promise<void> {
-  const { error } = await supabase.from('appointments').insert({
-    professional_id: appointment.professionalId,
-    professional_name: appointment.professionalName,
-    sector: appointment.sector,
-    city: appointment.city,
-    appointment_date: appointment.date,
-    appointment_time: appointment.time,
-    user_name: appointment.userName,
-    user_phone: appointment.userPhone,
-    status: appointment.status,
-    notes: appointment.notes,
-    sync_google_calendar: appointment.syncGoogleCalendar,
-    needs_reminders: appointment.needsReminders,
-    cost: appointment.cost,
-    payment_status: appointment.paymentStatus,
-    amount_paid: appointment.amountPaid,
-  });
-  // Remarque : pas de .select() ici — un visiteur anonyme n'a pas le droit
-  // de relire une ligne de la table appointments (confidentialité), même
-  // celle qu'il vient de créer. L'écran "Mes rendez-vous" la récupère
-  // juste après via la fonction sécurisée get_my_appointments().
-
-  if (error) {
-    console.error('bookAppointment error', error);
-    throw error;
-  }
+export function mark1hAlertAsNotified(id: number) {
+  try {
+    const list = getNotified1hAlerts();
+    if (!list.includes(id)) {
+      list.push(id);
+      localStorage.setItem(NOTIFIED_KEY, JSON.stringify(list));
+    }
+  } catch {}
 }
 
 /**
- * Annulation côté client : protégée par le numéro de téléphone
- * (fonction RPC — un client ne peut annuler qu'un RDV dont il connaît
- * le numéro utilisé lors de la réservation).
+ * Plays an alert audio chime using Web Audio API (no external asset needed).
  */
-export async function cancelMyAppointment(id: number, phone: string): Promise<void> {
-  const { error } = await supabase.rpc('cancel_my_appointment', { p_id: id, p_phone: phone });
-  if (error) {
-    console.error('cancelMyAppointment error', error);
-    throw error;
+export function playAlertChime() {
+  try {
+    const AudioContextClass =
+      window.AudioContext ||
+      (window as unknown as { webkitAudioContext: typeof window.AudioContext }).webkitAudioContext;
+    if (!AudioContextClass) return;
+
+    const ctx = new AudioContextClass();
+    const playTone = (freq: number, start: number, duration: number) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, ctx.currentTime + start);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime + start);
+      gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + start + duration);
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start(ctx.currentTime + start);
+      osc.stop(ctx.currentTime + start + duration);
+    };
+
+    // Melodic two-tone ping (D5 -> A5)
+    playTone(587.33, 0, 0.35);
+    playTone(880.0, 0.18, 0.55);
+  } catch (e) {
+    console.debug('Audio chime unable to play', e);
   }
 }
 
 /**
- * Mise à jour de statut côté professionnel (Confirmer / Terminer / Annuler).
+ * Sends a native browser desktop notification if permission is granted.
  */
-export async function updateAppointmentStatus(
-  id: number,
-  status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
-): Promise<void> {
-  const { error } = await supabase.from('appointments').update({ status }).eq('id', id);
-  if (error) {
-    console.error('updateAppointmentStatus error', error);
-    throw error;
+export function sendBrowserNotification(title: string, body: string) {
+  if (typeof window === 'undefined' || !('Notification' in window)) return;
+  if (Notification.permission === 'granted') {
+    try {
+      new Notification(title, {
+        body,
+        icon: '/logo.svg',
+      });
+    } catch (e) {
+      console.debug('Browser notification failed', e);
+    }
   }
 }
