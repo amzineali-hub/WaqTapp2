@@ -56,34 +56,33 @@ export async function fetchMyAppointments(phone: string): Promise<UserAppointmen
 
 export async function bookAppointment(
   appointment: Omit<UserAppointment, 'id' | 'createdTimestamp'>
-): Promise<UserAppointment> {
-  const { data, error } = await supabase
-    .from('appointments')
-    .insert({
-      professional_id: appointment.professionalId,
-      professional_name: appointment.professionalName,
-      sector: appointment.sector,
-      city: appointment.city,
-      appointment_date: appointment.date,
-      appointment_time: appointment.time,
-      user_name: appointment.userName,
-      user_phone: appointment.userPhone,
-      status: appointment.status,
-      notes: appointment.notes,
-      sync_google_calendar: appointment.syncGoogleCalendar,
-      needs_reminders: appointment.needsReminders,
-      cost: appointment.cost,
-      payment_status: appointment.paymentStatus,
-      amount_paid: appointment.amountPaid,
-    })
-    .select()
-    .single();
+): Promise<void> {
+  const { error } = await supabase.from('appointments').insert({
+    professional_id: appointment.professionalId,
+    professional_name: appointment.professionalName,
+    sector: appointment.sector,
+    city: appointment.city,
+    appointment_date: appointment.date,
+    appointment_time: appointment.time,
+    user_name: appointment.userName,
+    user_phone: appointment.userPhone,
+    status: appointment.status,
+    notes: appointment.notes,
+    sync_google_calendar: appointment.syncGoogleCalendar,
+    needs_reminders: appointment.needsReminders,
+    cost: appointment.cost,
+    payment_status: appointment.paymentStatus,
+    amount_paid: appointment.amountPaid,
+  });
+  // Remarque : pas de .select() ici — un visiteur anonyme n'a pas le droit
+  // de relire une ligne de la table appointments (confidentialité), même
+  // celle qu'il vient de créer. L'écran "Mes rendez-vous" la récupère
+  // juste après via la fonction sécurisée get_my_appointments().
 
   if (error) {
     console.error('bookAppointment error', error);
     throw error;
   }
-  return mapRow(data);
 }
 
 /**
