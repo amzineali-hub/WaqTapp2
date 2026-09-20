@@ -1,16 +1,14 @@
-import React, { useState } from 'react';
-import { Search, MapPin, Phone, Star, CheckCircle, Calendar, ShieldCheck, XCircle, Clock, Check, Zap, BellRing } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Search, MapPin, Phone, Star, CheckCircle, Calendar, ShieldCheck, XCircle, Clock, Check, Zap, BellRing, Loader2 } from 'lucide-react';
 import { Professional, SectorType, UserAppointment } from '../types';
 import { Language, translations } from '../utils/translations';
 import { BookingModal } from './BookingModal';
 import { isAppointmentWithinOneHour, getMinutesRemaining } from '../utils/appointmentAlerts';
+import { fetchMyAppointments, cancelMyAppointment, bookAppointment as bookAppointmentService } from '../services/appointments';
 
 interface ClientViewProps {
   professionals: Professional[];
-  appointments: UserAppointment[];
   currentLang: Language;
-  onBookAppointment: (appointment: Omit<UserAppointment, 'id' | 'createdTimestamp'>) => void;
-  onCancelAppointment: (id: number) => void;
   activeSubTab?: 'DIRECTORY' | 'MY_APPOINTMENTS';
   onSubTabChange?: (tab: 'DIRECTORY' | 'MY_APPOINTMENTS') => void;
   onSimulateUrgentAppointment?: () => void;
@@ -18,10 +16,7 @@ interface ClientViewProps {
 
 export const ClientView: React.FC<ClientViewProps> = ({
   professionals,
-  appointments,
   currentLang,
-  onBookAppointment,
-  onCancelAppointment,
   activeSubTab: controlledSubTab,
   onSubTabChange,
   onSimulateUrgentAppointment,
@@ -33,6 +28,34 @@ export const ClientView: React.FC<ClientViewProps> = ({
   const [selectedCity, setSelectedCity] = useState<string>('ALL');
   const [bookingPro, setBookingPro] = useState<Professional | null>(null);
   const [internalSubTab, setInternalSubTab] = useState<'DIRECTORY' | 'MY_APPOINTMENTS'>('DIRECTORY');
+  const [myPhone, setMyPhone] = useState<string>(() => sessionStorage.getItem('waqtapp_my_phone') || '');
+  const [phoneInput, setPhoneInput] = useState('');
+  const [myAppointments, setMyAppointments] = useState<UserAppointment[]>([]);
+  const [loadingMyAppointments, setLoadingMyAppointments] = useState(false);
+  const [bookingConfirmedMsg, setBookingConfirmedMsg] = useState<string | null>(null);
+
+  const refreshMyAppointments = useCallback(async (phone: string) => {
+    if (!phone) {
+      setMyAppointments([]);
+      return;
+    }
+    setLoadingMyAppointments(true);
+    try {
+      const list = await fetchMyAppointments(phone);
+      setMyAppointments(list);
+    } finally {
+      setLoadingMyAppointments(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refreshMyAppointments(myPhone);
+  }, [myPhone, refreshMyAppointments]);
+
+  const handleCancelMyAppointment = async (id: number) => {
+    await cancelMyAppointment(id, myPhone);
+    refreshMyAppointments(myPhone);
+  };
 
   const activeSubTab = controlledSubTab ?? internalSubTab;
   const handleSubTabClick = (tab: 'DIRECTORY' | 'MY_APPOINTMENTS') => {
@@ -95,9 +118,9 @@ export const ClientView: React.FC<ClientViewProps> = ({
           >
             <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4 shrink-0" />
             <span className="truncate">{currentLang === 'FR' ? 'Mes Rendez-vous' : 'مواعيدي'}</span>
-            {appointments.length > 0 && (
+            {myAppointments.length > 0 && (
               <span className="text-[10px] sm:text-xs bg-amber-500 text-white px-1.5 py-0.5 rounded-full font-bold shrink-0">
-                {appointments.length}
+                {myAppointments.length}
               </span>
             )}
           </button>
@@ -271,6 +294,12 @@ export const ClientView: React.FC<ClientViewProps> = ({
       ) : (
         /* MY APPOINTMENTS SECTION */
         <div className="bg-white rounded-2xl border border-slate-200 p-3.5 sm:p-6 shadow-xs">
+          {bookingConfirmedMsg && (
+            <div className="mb-4 p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-sm font-semibold flex items-center gap-2">
+              <Check className="w-4 h-4 shrink-0" />
+              {bookingConfirmedMsg}
+            </div>
+          )}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 sm:gap-3 mb-4">
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Calendar className="w-5 h-5 text-teal-600" />
@@ -288,12 +317,56 @@ export const ClientView: React.FC<ClientViewProps> = ({
                 </button>
               )}
               <span className="text-xs bg-slate-100 text-slate-700 font-semibold px-2.5 py-1.5 rounded-lg text-center">
-                {appointments.length} {currentLang === 'FR' ? 'rendez-vous' : 'موعد'}
+                {myAppointments.length} {currentLang === 'FR' ? 'rendez-vous' : 'موعد'}
               </span>
+              {myPhone && (
+                <button
+                  onClick={() => { sessionStorage.removeItem('waqtapp_my_phone'); setMyPhone(''); setPhoneInput(''); }}
+                  className="text-xs text-slate-400 hover:text-slate-600 underline"
+                >
+                  {currentLang === 'FR' ? 'Changer de numéro' : 'تغيير الرقم'}
+                </button>
+              )}
             </div>
           </div>
 
-          {appointments.length === 0 ? (
+          {!myPhone ? (
+            <div className="py-10 text-center max-w-sm mx-auto space-y-3">
+              <Phone className="w-10 h-10 mx-auto text-teal-600" />
+              <p className="text-sm text-slate-600">
+                {currentLang === 'FR'
+                  ? "Entrez le numéro utilisé lors de votre réservation pour retrouver vos rendez-vous."
+                  : "أدخلوا رقم الهاتف المستخدم عند الحجز لاسترجاع مواعيدكم."}
+              </p>
+              <div className="flex gap-2">
+                <input
+                  type="tel"
+                  value={phoneInput}
+                  onChange={(e) => setPhoneInput(e.target.value)}
+                  placeholder={currentLang === 'FR' ? 'Ex: 0661223344' : '0661223344'}
+                  className="flex-1 px-3 py-2 border border-slate-300 rounded-xl text-sm"
+                />
+                <button
+                  onClick={() => {
+                    const trimmed = phoneInput.trim();
+                    if (!trimmed) return;
+                    sessionStorage.setItem('waqtapp_my_phone', trimmed);
+                    setMyPhone(trimmed);
+                  }}
+                  className="px-4 py-2 bg-teal-600 text-white text-xs font-bold rounded-xl shadow-xs"
+                >
+                  {currentLang === 'FR' ? 'Valider' : 'تأكيد'}
+                </button>
+              </div>
+            </div>
+          ) : loadingMyAppointments ? (
+            <div className="py-12 text-center text-slate-400">
+              <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin text-teal-600" />
+              <p className="text-sm">
+                {currentLang === 'FR' ? 'Chargement de vos rendez-vous...' : 'جارٍ تحميل مواعيدكم...'}
+              </p>
+            </div>
+          ) : myAppointments.length === 0 ? (
             <div className="py-12 text-center text-slate-400">
               <Calendar className="w-12 h-12 mx-auto mb-2 opacity-40 text-slate-400" />
               <p className="font-medium text-sm">
@@ -310,7 +383,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
             </div>
           ) : (
             <div className="space-y-3">
-              {appointments.map((app) => {
+              {myAppointments.map((app) => {
                 const isUrgent = isAppointmentWithinOneHour(app);
                 const minutesLeft = getMinutesRemaining(app);
 
@@ -395,7 +468,7 @@ export const ClientView: React.FC<ClientViewProps> = ({
                     {app.status === 'CONFIRMED' && (
                       <div className="shrink-0 flex items-center gap-2 w-full sm:w-auto justify-end">
                         <button
-                          onClick={() => onCancelAppointment(app.id)}
+                          onClick={() => handleCancelMyAppointment(app.id)}
                           className="w-full sm:w-auto justify-center px-3 py-2 sm:py-1.5 bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs rounded-xl border border-rose-200 transition flex items-center gap-1.5 touch-manipulation min-h-[36px]"
                         >
                           <XCircle className="w-3.5 h-3.5" />
@@ -417,8 +490,17 @@ export const ClientView: React.FC<ClientViewProps> = ({
           professional={bookingPro}
           currentLang={currentLang}
           onClose={() => setBookingPro(null)}
-          onConfirm={(appointmentData) => {
-            onBookAppointment(appointmentData);
+          onConfirm={async (appointmentData) => {
+            await bookAppointmentService(appointmentData);
+            sessionStorage.setItem('waqtapp_my_phone', appointmentData.userPhone);
+            setMyPhone(appointmentData.userPhone);
+            await refreshMyAppointments(appointmentData.userPhone);
+            setBookingConfirmedMsg(
+              currentLang === 'FR'
+                ? `Rendez-vous confirmé avec ${appointmentData.professionalName} !`
+                : `تم تأكيد الموعد مع ${appointmentData.professionalName} !`
+            );
+            setTimeout(() => setBookingConfirmedMsg(null), 6000);
             setBookingPro(null);
             handleSubTabClick('MY_APPOINTMENTS');
           }}

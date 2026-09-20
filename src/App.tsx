@@ -1,21 +1,31 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
+import type { Session } from '@supabase/supabase-js';
 import { Navbar } from './components/Navbar';
 import { ClientView } from './components/ClientView';
 import { ProfessionalView } from './components/ProfessionalView';
 import { AdminDirectoryView } from './components/AdminDirectoryView';
 import { NotificationModal } from './components/NotificationModal';
 import { UpcomingAppointmentAlert } from './components/UpcomingAppointmentAlert';
+import { AuthGate } from './components/AuthGate';
+import { CreateProfessionalForm } from './components/CreateProfessionalForm';
 import {
-  getStoredProfessionals,
-  saveStoredProfessionals,
-  getStoredAppointments,
-  saveStoredAppointments,
-  getStoredNotifications,
-  saveStoredNotifications,
-  getStoredStaff,
-  saveStoredStaff,
-  getStoredRoles,
-} from './utils/storage';
+  fetchProfessionals,
+  importProfessionals,
+  updateProfessional,
+  createOwnProfessional,
+} from './services/professionals';
+import {
+  fetchAppointmentsForOwner,
+  updateAppointmentStatus as updateAppointmentStatusService,
+} from './services/appointments';
+import { fetchStaffForOwner, addStaffMember, deleteStaffMember } from './services/staff';
+import {
+  fetchNotificationsForOwner,
+  markAllNotificationsAsRead,
+  clearAllNotifications,
+} from './services/notifications';
+import { getCurrentSession, onAuthStateChange, signOutProfessional, checkIsAdmin } from './services/auth';
+import { INITIAL_ROLES } from './data/initialData';
 import { Professional, UserAppointment, AppNotification, StaffMember } from './types';
 import { Language } from './utils/translations';
 import {
@@ -26,7 +36,7 @@ import {
   playAlertChime,
   sendBrowserNotification,
 } from './utils/appointmentAlerts';
-import { ShieldCheck, Zap } from 'lucide-react';
+import { ShieldCheck, Zap, LogOut, Loader2, ShieldAlert } from 'lucide-react';
 
 export const App: React.FC = () => {
   const [currentLang, setCurrentLang] = useState<Language>('FR');
@@ -35,15 +45,73 @@ export const App: React.FC = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   const [dismissed1hAlertIds, setDismissed1hAlertIds] = useState<number[]>([]);
 
-  // Core app state
-  const [professionals, setProfessionals] = useState<Professional[]>(getStoredProfessionals);
-  const [appointments, setAppointments] = useState<UserAppointment[]>(getStoredAppointments);
-  const [notifications, setNotifications] = useState<AppNotification[]>(getStoredNotifications);
-  const [staff, setStaff] = useState<StaffMember[]>(getStoredStaff);
-  const roles = getStoredRoles();
+  // Annuaire public (visible par tout le monde)
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
+  const [loadingProfessionals, setLoadingProfessionals] = useState(true);
 
-  // Pick Dr. Ali Alami (ID 1) as the default professional for Pro view
-  const currentPro = professionals.find((p) => p.id === 1) || professionals[0];
+  // Authentification (partagée entre Espace Pro et Espace Admin)
+  const [session, setSession] = useState<Session | null>(null);
+  const [sessionChecked, setSessionChecked] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  // Données scoppées au professionnel connecté (RLS gère déjà le filtrage
+  // côté serveur : ces requêtes ne renvoient que ce qui appartient à l'owner)
+  const [proAppointments, setProAppointments] = useState<UserAppointment[]>([]);
+  const [staff, setStaff] = useState<StaffMember[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const roles = INITIAL_ROLES;
+
+  const myProfessional = session
+    ? professionals.find((p) => p.ownerUserId === session.user.id) || null
+    : null;
+
+  // --- Chargement initial : annuaire public + session existante ---
+  useEffect(() => {
+    fetchProfessionals().then((list) => {
+      setProfessionals(list);
+      setLoadingProfessionals(false);
+    });
+
+    getCurrentSession().then((s) => {
+      setSession(s);
+      setSessionChecked(true);
+    });
+
+    const unsubscribe = onAuthStateChange((s) => setSession(s));
+    return unsubscribe;
+  }, []);
+
+  // --- Statut admin, recalculé à chaque changement de session ---
+  useEffect(() => {
+    if (session) {
+      checkIsAdmin(session.user.id).then(setIsAdmin);
+    } else {
+      setIsAdmin(false);
+    }
+  }, [session]);
+
+  // --- Données du cabinet (RDV, staff, notifications) une fois qu'on sait
+  //     quelle fiche professionnelle appartient à l'utilisateur connecté ---
+  const refreshProData = useCallback(async () => {
+    if (!myProfessional) {
+      setProAppointments([]);
+      setStaff([]);
+      setNotifications([]);
+      return;
+    }
+    const [apps, staffList, notifs] = await Promise.all([
+      fetchAppointmentsForOwner(),
+      fetchStaffForOwner(),
+      fetchNotificationsForOwner(),
+    ]);
+    setProAppointments(apps);
+    setStaff(staffList);
+    setNotifications(notifs);
+  }, [myProfessional]);
+
+  useEffect(() => {
+    refreshProData();
+  }, [refreshProData]);
 
   // RTL / LTR document effect
   useEffect(() => {
@@ -51,56 +119,20 @@ export const App: React.FC = () => {
     document.documentElement.lang = currentLang.toLowerCase();
   }, [currentLang]);
 
-  // Sync to storage
-  useEffect(() => {
-    saveStoredProfessionals(professionals);
-  }, [professionals]);
-
-  useEffect(() => {
-    saveStoredAppointments(appointments);
-  }, [appointments]);
-
-  useEffect(() => {
-    saveStoredNotifications(notifications);
-  }, [notifications]);
-
-  useEffect(() => {
-    saveStoredStaff(staff);
-  }, [staff]);
-
-  // Automated 1-hour appointment alert scanner (runs on change and every 20 seconds)
+  // Scanner d'alerte "RDV dans 1h" — désormais côté professionnel connecté
   useEffect(() => {
     const scanAppointmentsFor1hAlert = () => {
       const now = Date.now();
       const notifiedList = getNotified1hAlerts();
 
-      appointments.forEach((app) => {
+      proAppointments.forEach((app) => {
         if (app.status === 'CONFIRMED' && isAppointmentWithinOneHour(app, now)) {
-          // If we haven't triggered the 1-hour alert for this appointment yet
           if (!notifiedList.includes(app.id)) {
             mark1hAlertAsNotified(app.id);
-
-            const minutesLeft = getMinutesRemaining(app, now);
-            const timeDiffLabel =
-              minutesLeft !== null && minutesLeft > 0 ? `dans ${minutesLeft} min` : 'imminent';
-            const timeDiffLabelAr =
-              minutesLeft !== null && minutesLeft > 0 ? `خلال ${minutesLeft} دقيقة` : 'الآن';
-
-            // Add visual notification to notifications center
-            addNotification(
-              `⏰ Rappel 1h : Rendez-vous avec ${app.professionalName}`,
-              `⏰ تذكير قبل ساعة : موعدكم مع ${app.professionalName}`,
-              `Votre rendez-vous prévu à ${app.time} (${timeDiffLabel}) à ${app.city} approche. Préparez votre départ !`,
-              `موعدكم المحدد على الساعة ${app.time} (${timeDiffLabelAr}) بمدينة ${app.city} يقترب. يرجى الاستعداد والتوجه إلى العنوان.`
-            );
-
-            // Play alert sound chime
             playAlertChime();
-
-            // Send native browser desktop notification
             sendBrowserNotification(
               `WaqtApp - Rendez-vous dans 1 heure !`,
-              `Votre rendez-vous avec ${app.professionalName} commence à ${app.time}.`
+              `RDV avec ${app.userName} à ${app.time}.`
             );
           }
         }
@@ -110,189 +142,92 @@ export const App: React.FC = () => {
     scanAppointmentsFor1hAlert();
     const interval = setInterval(scanAppointmentsFor1hAlert, 20000);
     return () => clearInterval(interval);
-  }, [appointments]);
+  }, [proAppointments]);
 
-  // Compute urgent appointments (within 1 hour and not dismissed in current view)
-  const urgentAppointments = appointments.filter(
+  const urgentAppointments = proAppointments.filter(
     (app) => isAppointmentWithinOneHour(app) && !dismissed1hAlertIds.includes(app.id)
   );
 
-  // Add notification helper
-  const addNotification = (titleFr: string, titleAr: string, messageFr: string, messageAr: string) => {
-    const newNotif: AppNotification = {
-      id: Date.now(),
-      titleFr,
-      titleAr,
-      messageFr,
-      messageAr,
-      timestamp: Date.now(),
-      isRead: false,
-    };
-    setNotifications((prev) => [newNotif, ...prev]);
-  };
-
-  // Helper to simulate an urgent appointment scheduled in 50 minutes (for testing the 1-hour alert)
-  const handleSimulateUrgentAppointment = () => {
-    const now = new Date();
-    const in50m = new Date(now.getTime() + 50 * 60 * 1000);
-    const dateStr = in50m.toISOString().split('T')[0];
-    const hours = String(in50m.getHours()).padStart(2, '0');
-    const mins = String(in50m.getMinutes()).padStart(2, '0');
-    const timeStr = `${hours}:${mins}`;
-
-    const pro = professionals[0] || {
-      id: 1,
-      name: 'Dr. Ali Alami',
-      city: 'Casablanca',
-      fees: 300,
-      sector: 'HEALTH',
-    };
-
-    const testApp: UserAppointment = {
-      id: Date.now(),
-      professionalId: pro.id,
-      professionalName: pro.name,
-      sector: pro.sector || 'HEALTH',
-      city: pro.city || 'Casablanca',
-      date: dateStr,
-      time: timeStr,
-      userName: 'Karim Idrissi',
-      userPhone: '0661223344',
-      status: 'CONFIRMED',
-      notes: "Rendez-vous test pour démonstration de l'alerte 1 heure avant",
-      syncGoogleCalendar: true,
-      needsReminders: true,
-      cost: pro.fees || 300,
-      paymentStatus: 'DEPOSIT_PAID',
-      amountPaid: 50,
-      createdTimestamp: Date.now(),
-    };
-
-    setAppointments((prev) => [testApp, ...prev]);
-    setActiveTab('CITOYEN');
-    setClientSubTab('MY_APPOINTMENTS');
-
-    // Reset dismissed state for this appointment if needed
-    setDismissed1hAlertIds((prev) => prev.filter((id) => id !== testApp.id));
-  };
-
   const handleViewUrgentAppointment = (_app: UserAppointment) => {
-    setActiveTab('CITOYEN');
-    setClientSubTab('MY_APPOINTMENTS');
+    setActiveTab('PRO');
   };
 
   const handleDismissUrgentAlert = (appId: number) => {
     setDismissed1hAlertIds((prev) => [...prev, appId]);
   };
 
-  // Client actions
-  const handleBookAppointment = (data: Omit<UserAppointment, 'id' | 'createdTimestamp'>) => {
-    const newApp: UserAppointment = {
-      ...data,
-      id: Date.now(),
-      createdTimestamp: Date.now(),
+  // --- Actions Espace Pro ---
+  const handleUpdateAppointmentStatus = async (
+    id: number,
+    status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED'
+  ) => {
+    await updateAppointmentStatusService(id, status);
+    refreshProData();
+  };
+
+  const handleSubscribe = async (plan: 'FREE' | 'MAWID_PRO_MONTHLY' | 'MAWID_PRO_YEARLY') => {
+    if (!myProfessional) return;
+    const updated: Professional = {
+      ...myProfessional,
+      isSubscribed: plan !== 'FREE',
+      subscriptionPlan: plan,
+      subscriptionExpiry:
+        Date.now() + (plan === 'MAWID_PRO_MONTHLY' ? 30 : 365) * 24 * 60 * 60 * 1000,
     };
-    setAppointments((prev) => [newApp, ...prev]);
-
-    addNotification(
-      "Rendez-vous confirmé !",
-      "تم تأكيد الموعد بنجاح !",
-      `Votre rendez-vous avec ${data.professionalName} le ${data.date} à ${data.time} est confirmé.`,
-      `تم تأكيد موعدكم مع ${data.professionalName} بتاريخ ${data.date} في تمام الساعة ${data.time}.`
-    );
+    await updateProfessional(updated);
+    setProfessionals((prev) => prev.map((p) => (p.id === updated.id ? updated : p)));
   };
 
-  const handleCancelAppointment = (id: number) => {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status: 'CANCELLED' } : a))
-    );
-
-    addNotification(
-      "Rendez-vous annulé",
-      "تم إلغاء الموعد",
-      "Le rendez-vous a été annulé avec succès.",
-      "تم إلغاء الموعد المحدد بنجاح."
-    );
+  const handleAddStaff = async (member: Omit<StaffMember, 'id' | 'professionalId'>) => {
+    if (!myProfessional) return;
+    await addStaffMember({ ...member, professionalId: myProfessional.id });
+    refreshProData();
   };
 
-  // Pro actions
-  const handleUpdateAppointmentStatus = (id: number, status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED') => {
-    setAppointments((prev) =>
-      prev.map((a) => (a.id === id ? { ...a, status } : a))
-    );
-
-    const statusLabel =
-      status === 'CONFIRMED' ? 'confirmé' : status === 'COMPLETED' ? 'terminé' : 'annulé';
-    addNotification(
-      `Statut de rendez-vous mis à jour`,
-      `تم تحديث حالة الموعد`,
-      `Le rendez-vous #${id} a été marqué comme ${statusLabel}.`,
-      `تم تحديث الموعد #${id} إلى الحالة الجديدة.`
-    );
+  const handleDeleteStaff = async (id: number) => {
+    await deleteStaffMember(id);
+    refreshProData();
   };
 
-  const handleSubscribe = (plan: 'FREE' | 'MAWID_PRO_MONTHLY' | 'MAWID_PRO_YEARLY') => {
-    const updated = professionals.map((p) => {
-      if (p.id === currentPro.id) {
-        return {
-          ...p,
-          isSubscribed: plan !== 'FREE',
-          subscriptionPlan: plan,
-          subscriptionExpiry:
-            Date.now() +
-            (plan === 'MAWID_PRO_MONTHLY' ? 30 : 365) * 24 * 60 * 60 * 1000,
-        };
-      }
-      return p;
-    });
-    setProfessionals(updated);
-
-    addNotification(
-      "Abonnement Pro activé !",
-      "تم تفعيل اشتراك موعد برو !",
-      `Félicitations, votre cabinet bénéficie désormais du badge Partenaire Vérifié avec le plan ${plan}.`,
-      `تهانينا، تم ترقية حسابكم المهني وتفعيل شارة الشريك المعتمد بنجاح.`
-    );
+  const handleCreateOwnProfessional = async (data: Parameters<
+    typeof createOwnProfessional
+  >[1]) => {
+    if (!session) return;
+    const created = await createOwnProfessional(session.user.id, data);
+    setProfessionals((prev) => [created, ...prev]);
   };
 
-  const handleAddStaff = (member: Omit<StaffMember, 'id'>) => {
-    const newMember: StaffMember = {
-      ...member,
-      id: Date.now(),
-    };
-    setStaff((prev) => [...prev, newMember]);
-    addNotification(
-      "Collaborateur ajouté",
-      "تمت إضافة عضو جديد للفريق",
-      `${member.name} a été ajouté à votre équipe avec succès.`,
-      `تمت إضافة ${member.name} إلى فريق العمل بنجاح.`
-    );
+  const handleSignOut = async () => {
+    await signOutProfessional();
+    setActiveTab('CITOYEN');
   };
 
-  const handleDeleteStaff = (id: number) => {
-    setStaff((prev) => prev.filter((s) => s.id !== id));
+  // --- Actions Espace Admin ---
+  const handleImportProfessionals = async (
+    newPros: Parameters<typeof importProfessionals>[0]
+  ) => {
+    const created = await importProfessionals(newPros);
+    setProfessionals((prev) => [...created, ...prev]);
   };
 
-  // Admin actions
-  const handleImportProfessionals = (newPros: Professional[]) => {
-    setProfessionals((prev) => [...newPros, ...prev]);
-    addNotification(
-      "Alimentation de l'annuaire réussie",
-      "تمت تغذية دليل المهنيين بنجاح",
-      `${newPros.length} nouveaux professionnels ont été ajoutés à la base publique.`,
-      `تمت إضافة ${newPros.length} مهنيين جدد إلى قاعدة البيانات العامة.`
-    );
+  const handleUpdateProfessional = async (updatedPro: Professional) => {
+    await updateProfessional(updatedPro);
+    setProfessionals((prev) => prev.map((p) => (p.id === updatedPro.id ? updatedPro : p)));
   };
 
-  const handleUpdateProfessional = (updatedPro: Professional) => {
-    setProfessionals((prev) =>
-      prev.map((p) => (p.id === updatedPro.id ? updatedPro : p))
-    );
+  const handleMarkAllNotificationsRead = async () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+    await markAllNotificationsAsRead();
+  };
+
+  const handleClearAllNotifications = async () => {
+    setNotifications([]);
+    await clearAllNotifications();
   };
 
   return (
     <div className="min-h-screen flex flex-col bg-slate-50 text-slate-900 transition-colors">
-      
+
       {/* Top Navigation Bar */}
       <Navbar
         currentLang={currentLang}
@@ -303,7 +238,7 @@ export const App: React.FC = () => {
         onOpenNotifications={() => setShowNotificationModal(true)}
       />
 
-      {/* Visual 1-Hour Upcoming Appointment Alert Banner */}
+      {/* Visual 1-Hour Upcoming Appointment Alert Banner (côté Pro) */}
       <UpcomingAppointmentAlert
         urgentAppointments={urgentAppointments}
         currentLang={currentLang}
@@ -318,53 +253,107 @@ export const App: React.FC = () => {
             <Zap className="w-4 h-4 text-amber-300 shrink-0" />
             <span className="leading-snug">
               {currentLang === 'FR'
-                ? "Plateforme en Accès Public Libre : Pas d'inscription requise pour tester !"
-                : "منصة مفتوحة للجميع بدون تسجيل دخول أو بريد إلكتروني !"}
+                ? "Espace Citoyen en accès libre, sans inscription. Un compte est requis pour les espaces Professionnel et Administration."
+                : "الفضاء المخصص للمواطنين مفتوح بدون تسجيل. يتطلب فضاءا المهني والإدارة إنشاء حساب."}
             </span>
           </div>
           <div className="flex items-center gap-1 text-[11px] text-teal-100 bg-teal-800/60 px-2.5 py-0.5 rounded-full border border-teal-600/60 shrink-0">
             <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
-            <span>{currentLang === 'FR' ? 'Démo Active' : 'وضع تجريبي نشط'}</span>
+            <span>{currentLang === 'FR' ? 'Connecté à Supabase' : 'متصل بقاعدة البيانات'}</span>
           </div>
         </div>
       </div>
 
       {/* Main Content Area */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {activeTab === 'CITOYEN' && (
-          <ClientView
-            professionals={professionals}
-            appointments={appointments}
-            currentLang={currentLang}
-            onBookAppointment={handleBookAppointment}
-            onCancelAppointment={handleCancelAppointment}
-            activeSubTab={clientSubTab}
-            onSubTabChange={setClientSubTab}
-            onSimulateUrgentAppointment={handleSimulateUrgentAppointment}
-          />
-        )}
+        {loadingProfessionals ? (
+          <div className="py-20 text-center text-slate-400">
+            <Loader2 className="w-8 h-8 mx-auto mb-2 animate-spin text-teal-600" />
+            <p className="text-sm">
+              {currentLang === 'FR' ? "Chargement de l'annuaire..." : 'جارٍ تحميل الدليل...'}
+            </p>
+          </div>
+        ) : (
+          <>
+            {activeTab === 'CITOYEN' && (
+              <ClientView
+                professionals={professionals}
+                currentLang={currentLang}
+                activeSubTab={clientSubTab}
+                onSubTabChange={setClientSubTab}
+              />
+            )}
 
-        {activeTab === 'PRO' && (
-          <ProfessionalView
-            currentPro={currentPro}
-            appointments={appointments}
-            staff={staff}
-            roles={roles}
-            currentLang={currentLang}
-            onUpdateAppointmentStatus={handleUpdateAppointmentStatus}
-            onSubscribe={handleSubscribe}
-            onAddStaff={handleAddStaff}
-            onDeleteStaff={handleDeleteStaff}
-          />
-        )}
+            {activeTab === 'PRO' && (
+              !sessionChecked ? null : !session ? (
+                <AuthGate currentLang={currentLang} context="PRO" onAuthenticated={() => {}} />
+              ) : !myProfessional ? (
+                <CreateProfessionalForm currentLang={currentLang} onCreate={handleCreateOwnProfessional} />
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleSignOut}
+                      className="text-xs font-bold text-slate-500 hover:text-red-600 flex items-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      {currentLang === 'FR' ? 'Se déconnecter' : 'تسجيل الخروج'}
+                    </button>
+                  </div>
+                  <ProfessionalView
+                    currentPro={myProfessional}
+                    appointments={proAppointments}
+                    staff={staff}
+                    roles={roles}
+                    currentLang={currentLang}
+                    onUpdateAppointmentStatus={handleUpdateAppointmentStatus}
+                    onSubscribe={handleSubscribe}
+                    onAddStaff={handleAddStaff}
+                    onDeleteStaff={handleDeleteStaff}
+                  />
+                </div>
+              )
+            )}
 
-        {activeTab === 'ADMIN' && (
-          <AdminDirectoryView
-            professionals={professionals}
-            currentLang={currentLang}
-            onImportProfessionals={handleImportProfessionals}
-            onUpdateProfessional={handleUpdateProfessional}
-          />
+            {activeTab === 'ADMIN' && (
+              !sessionChecked ? null : !session ? (
+                <AuthGate currentLang={currentLang} context="ADMIN" onAuthenticated={() => {}} />
+              ) : !isAdmin ? (
+                <div className="max-w-sm mx-auto mt-10 p-6 bg-white rounded-2xl border border-slate-200 shadow-xs text-center space-y-3">
+                  <ShieldAlert className="w-10 h-10 mx-auto text-red-500" />
+                  <p className="text-sm text-slate-700 font-medium">
+                    {currentLang === 'FR'
+                      ? "Ce compte n'a pas les droits d'administration."
+                      : "هذا الحساب لا يملك صلاحيات الإدارة."}
+                  </p>
+                  <button
+                    onClick={handleSignOut}
+                    className="text-xs font-bold text-slate-500 hover:text-red-600 underline"
+                  >
+                    {currentLang === 'FR' ? 'Se déconnecter' : 'تسجيل الخروج'}
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={handleSignOut}
+                      className="text-xs font-bold text-slate-500 hover:text-red-600 flex items-center gap-1.5"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      {currentLang === 'FR' ? 'Se déconnecter' : 'تسجيل الخروج'}
+                    </button>
+                  </div>
+                  <AdminDirectoryView
+                    professionals={professionals}
+                    currentLang={currentLang}
+                    onImportProfessionals={handleImportProfessionals}
+                    onUpdateProfessional={handleUpdateProfessional}
+                  />
+                </div>
+              )
+            )}
+          </>
         )}
       </main>
 
@@ -374,10 +363,8 @@ export const App: React.FC = () => {
           notifications={notifications}
           currentLang={currentLang}
           onClose={() => setShowNotificationModal(false)}
-          onMarkAllAsRead={() => {
-            setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
-          }}
-          onClearAll={() => setNotifications([])}
+          onMarkAllAsRead={handleMarkAllNotificationsRead}
+          onClearAll={handleClearAllNotifications}
         />
       )}
 

@@ -6,7 +6,7 @@ import { Language, translations } from '../utils/translations';
 interface AdminDirectoryViewProps {
   professionals: Professional[];
   currentLang: Language;
-  onImportProfessionals: (newPros: Professional[]) => void;
+  onImportProfessionals: (newPros: Omit<Professional, 'id' | 'ownerUserId'>[]) => void;
   onUpdateProfessional: (updatedPro: Professional) => void;
 }
 
@@ -37,7 +37,7 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
 
   // Editor state
-  const [selectedProId, setSelectedProId] = useState<number>(professionals[0]?.id || 1);
+  const [selectedProId, setSelectedProId] = useState<string>(professionals[0]?.id || '');
   const selectedPro = professionals.find((p) => p.id === selectedProId) || professionals[0];
 
   const [editName, setEditName] = useState(selectedPro?.name || '');
@@ -50,7 +50,7 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
   const [editFees, setEditFees] = useState(selectedPro?.fees || 300);
 
   // When selected pro changes in dropdown
-  const handleSelectProChange = (id: number) => {
+  const handleSelectProChange = (id: string) => {
     setSelectedProId(id);
     const target = professionals.find((p) => p.id === id);
     if (target) {
@@ -147,8 +147,7 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
         ? 'ميكانيك السيارات'
         : 'الحرف والأعمال';
 
-    const newPros: Professional[] = parsedItems.map((item, idx) => ({
-      id: Date.now() + idx,
+    const newPros: Omit<Professional, 'id' | 'ownerUserId'>[] = parsedItems.map((item) => ({
       name: item.name,
       sector: targetSector,
       sectorFr: sectorLabelFr,
@@ -349,7 +348,7 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
           <label className="block text-xs font-bold text-slate-700 mb-1">{a.selectPro}</label>
           <select
             value={selectedProId}
-            onChange={(e) => handleSelectProChange(Number(e.target.value))}
+            onChange={(e) => handleSelectProChange(e.target.value)}
             className="w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
           >
             {professionals.map((p) => (

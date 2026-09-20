@@ -11,7 +11,7 @@ interface ProfessionalViewProps {
   currentLang: Language;
   onUpdateAppointmentStatus: (id: number, status: 'CONFIRMED' | 'CANCELLED' | 'COMPLETED') => void;
   onSubscribe: (plan: 'FREE' | 'MAWID_PRO_MONTHLY' | 'MAWID_PRO_YEARLY') => void;
-  onAddStaff: (staff: Omit<StaffMember, 'id'>) => void;
+  onAddStaff: (staff: Omit<StaffMember, 'id' | 'professionalId'>) => void;
   onDeleteStaff: (id: number) => void;
 }
 

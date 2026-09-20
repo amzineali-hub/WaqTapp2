@@ -2,7 +2,7 @@ export type SectorType = 'ALL' | 'HEALTH' | 'BEAUTY' | 'ADMIN' | 'AUTO' | 'ARTIS
 
 export interface UserAppointment {
   id: number;
-  professionalId: number;
+  professionalId: string;
   professionalName: string;
   sector: string;
   city: string;
@@ -21,7 +21,8 @@ export interface UserAppointment {
 }
 
 export interface Professional {
-  id: number;
+  id: string;
+  ownerUserId?: string | null;
   name: string;
   sector: string;
   sectorFr: string;
@@ -43,6 +44,7 @@ export interface Professional {
 
 export interface AppNotification {
   id: number;
+  professionalId?: string;
   titleFr: string;
   titleAr: string;
   messageFr: string;
@@ -62,6 +64,7 @@ export interface RolePermission {
 
 export interface StaffMember {
   id: number;
+  professionalId: string;
   name: string;
   roleId: string;
   phone: string;
