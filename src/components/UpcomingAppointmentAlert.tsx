@@ -117,7 +117,7 @@ export const UpcomingAppointmentAlert: React.FC<UpcomingAppointmentAlertProps> =
 
             <button
               onClick={() => onViewAppointment(currentApp)}
-              className="flex-1 md:flex-none justify-center text-xs font-bold bg-white text-amber-900 hover:bg-amber-50 px-3.5 py-1.5 sm:py-2 rounded-xl shadow-xs transition flex items-center gap-1 min-h-[36px] touch-manipulation shrink-0"
+              className="flex-1 md:flex-none justify-center text-xs font-bold bg-white text-amber-900 hover:bg-amber-50 px-3.5 py-1.5 sm:py-2 rounded-xl border border-amber-700/20 shadow-[0_2px_0_0_#b45309] active:translate-y-[2px] active:shadow-none transition-all duration-150 flex items-center gap-1 min-h-[36px] touch-manipulation shrink-0"
             >
               <span>{isAr ? 'عرض تفاصيل الموعد' : 'Voir le rendez-vous'}</span>
               <ChevronRight className={`w-4 h-4 ${isAr ? 'rotate-180' : ''}`} />

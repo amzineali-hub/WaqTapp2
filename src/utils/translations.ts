@@ -111,7 +111,7 @@ export const translations = {
     }
   },
   AR: {
-    appName: "تطبيق وقت - WaqtApp",
+    appName: "وقتاب - WaqtApp",
     tagline: "منصة إدارة المواعيد والخدمات في المغرب",
     demoBadge: "ولوج حر ومفتوح • وضع تجريبي",
     allCities: "جميع المدن",

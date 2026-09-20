@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Briefcase, Calendar, CheckCircle, Clock, DollarSign, Users, Shield, Plus, Trash2, Sparkles, Check } from 'lucide-react';
 import { Professional, UserAppointment, StaffMember, RolePermission } from '../types';
 import { Language, translations } from '../utils/translations';
+import { Button, Card, Badge, Input, Select } from './ui';
 
 interface ProfessionalViewProps {
   currentPro: Professional;
@@ -68,6 +69,7 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
       
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-teal-800 to-teal-950 text-white rounded-2xl p-4 sm:p-6 shadow-md relative overflow-hidden">
+        <div className="absolute inset-0 pattern-zellige pointer-events-none" aria-hidden="true" />
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-3 sm:gap-4">
           <div>
             <span className="text-[11px] font-bold text-teal-300 uppercase tracking-widest px-2.5 py-0.5 rounded-full bg-teal-900/80 border border-teal-700 inline-block mb-2">
@@ -91,21 +93,18 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                   : p.freePlan}
               </span>
             </div>
-            <button
-              onClick={() => setShowUpgradeModal(true)}
-              className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-900 font-extrabold text-xs rounded-xl shadow-lg transition text-center touch-manipulation min-h-[40px] flex items-center justify-center"
-            >
+            <Button variant="accent" onClick={() => setShowUpgradeModal(true)}>
               {p.upgradeBtn}
-            </button>
+            </Button>
           </div>
         </div>
       </div>
 
       {/* KPI Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-teal-50 text-teal-700 flex items-center justify-center shrink-0">
+
+        <Card hover padding="md" className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-teal-400 to-teal-600 text-white flex items-center justify-center shrink-0 border border-teal-700/30 shadow-[0_2px_0_0_#115e59]">
             <Calendar className="w-6 h-6" />
           </div>
           <div>
@@ -114,10 +113,10 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
               {proAppointments.length}
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-emerald-50 text-emerald-700 flex items-center justify-center shrink-0">
+        <Card hover padding="md" className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-emerald-400 to-emerald-600 text-white flex items-center justify-center shrink-0 border border-emerald-700/30 shadow-[0_2px_0_0_#065f46]">
             <CheckCircle className="w-6 h-6" />
           </div>
           <div>
@@ -126,10 +125,10 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
               {confirmedCount}
             </div>
           </div>
-        </div>
+        </Card>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-xs flex items-center gap-4">
-          <div className="w-12 h-12 rounded-xl bg-amber-50 text-amber-700 flex items-center justify-center shrink-0">
+        <Card hover padding="md" className="flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-amber-400 to-amber-600 text-white flex items-center justify-center shrink-0 border border-amber-700/30 shadow-[0_2px_0_0_#b45309]">
             <DollarSign className="w-6 h-6" />
           </div>
           <div>
@@ -138,12 +137,12 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
               {estimatedRevenue} {t.dh}
             </div>
           </div>
-        </div>
+        </Card>
 
       </div>
 
       {/* Appointments Management List */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <Card padding="md">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -156,9 +155,9 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                 : 'تحديث حالة المواعيد في الوقت الفعلي'}
             </p>
           </div>
-          <span className="text-xs bg-teal-50 text-teal-800 font-bold px-2.5 py-1 rounded-lg">
+          <Badge variant="primary">
             {proAppointments.length} {currentLang === 'FR' ? 'rendez-vous' : 'موعد'}
-          </span>
+          </Badge>
         </div>
 
         {proAppointments.length === 0 ? (
@@ -193,17 +192,14 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                       {app.notes || <span className="text-slate-400 italic">-</span>}
                     </td>
                     <td className="py-3 px-4">
-                      <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          app.status === 'CONFIRMED'
-                            ? 'bg-emerald-100 text-emerald-800'
-                            : app.status === 'COMPLETED'
-                            ? 'bg-blue-100 text-blue-800'
-                            : 'bg-rose-100 text-rose-800'
-                        }`}
+                      <Badge
+                        size="sm"
+                        variant={
+                          app.status === 'CONFIRMED' ? 'success' : app.status === 'COMPLETED' ? 'info' : 'danger'
+                        }
                       >
                         {t.appointmentStatus[app.status]}
-                      </span>
+                      </Badge>
                     </td>
                     <td className="py-3 px-4 text-right space-x-1 whitespace-nowrap">
                       {app.status !== 'CONFIRMED' && (
@@ -237,10 +233,10 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
             </table>
           </div>
         )}
-      </div>
+      </Card>
 
       {/* Team & Role Permissions Section */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+      <Card padding="md">
         <div className="flex items-center justify-between mb-4">
           <div>
             <h3 className="text-base font-bold text-slate-900 flex items-center gap-2">
@@ -253,13 +249,10 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                 : 'إدارة المساعدين وموظفي الاستقبال وصلاحياتهم'}
             </p>
           </div>
-          <button
-            onClick={() => setShowAddStaffModal(true)}
-            className="px-3 py-1.5 bg-teal-600 hover:bg-teal-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center gap-1.5"
-          >
+          <Button size="sm" onClick={() => setShowAddStaffModal(true)}>
             <Plus className="w-3.5 h-3.5" />
             {p.addStaff}
-          </button>
+          </Button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -274,13 +267,13 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                   <div className="flex items-start justify-between">
                     <div>
                       <h4 className="font-bold text-slate-900 text-sm">{member.name}</h4>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-md bg-teal-100 text-teal-800 inline-block mt-1">
+                      <Badge variant="primary" size="sm" className="mt-1">
                         {roleObj
                           ? currentLang === 'FR'
                             ? roleObj.roleNameFr
                             : roleObj.roleNameAr
                           : member.roleId}
-                      </span>
+                      </Badge>
                     </div>
                     <button
                       onClick={() => onDeleteStaff(member.id)}
@@ -311,7 +304,7 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
             );
           })}
         </div>
-      </div>
+      </Card>
 
       {/* Upgrade Subscription Modal */}
       {showUpgradeModal && (
@@ -339,7 +332,7 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                   <h4 className="font-bold text-sm text-teal-900">Mawid Pro Mensuel</h4>
                   <p className="text-xs text-teal-700">290 DH / mois • Sans engagement</p>
                 </div>
-                <span className="px-3 py-1.5 bg-teal-600 text-white font-bold text-xs rounded-lg">
+                <span className="px-3 py-1.5 bg-gradient-to-b from-teal-500 to-teal-600 text-white font-bold text-xs rounded-lg border border-teal-700/40 shadow-[0_2px_0_0_#115e59]">
                   Choisir
                 </span>
               </div>
@@ -354,25 +347,20 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
                 <div>
                   <div className="flex items-center gap-1.5">
                     <h4 className="font-bold text-sm text-slate-900">Mawid Pro Annuel</h4>
-                    <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded-full bg-amber-200 text-amber-900">
-                      -20%
-                    </span>
+                    <Badge variant="accent" size="sm">-20%</Badge>
                   </div>
                   <p className="text-xs text-slate-600">2 900 DH / an (2 mois offerts)</p>
                 </div>
-                <span className="px-3 py-1.5 bg-amber-500 text-slate-900 font-bold text-xs rounded-lg">
+                <span className="px-3 py-1.5 bg-gradient-to-b from-amber-400 to-amber-500 text-slate-900 font-bold text-xs rounded-lg border border-amber-600/40 shadow-[0_2px_0_0_#b45309]">
                   Choisir
                 </span>
               </div>
             </div>
 
             <div className="text-right pt-2">
-              <button
-                onClick={() => setShowUpgradeModal(false)}
-                className="px-4 py-2 text-xs font-semibold text-slate-500 hover:text-slate-800"
-              >
+              <Button variant="ghost" size="sm" onClick={() => setShowUpgradeModal(false)}>
                 Fermer
-              </button>
+              </Button>
             </div>
           </div>
         </div>
@@ -390,67 +378,60 @@ export const ProfessionalView: React.FC<ProfessionalViewProps> = ({
             <form onSubmit={handleCreateStaff} className="space-y-3">
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">{p.staffName}</label>
-                <input
+                <Input
                   type="text"
                   required
                   value={newStaffName}
                   onChange={(e) => setNewStaffName(e.target.value)}
                   placeholder="Ex: Sara Mansouri"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  className="text-xs"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">{p.staffPhone}</label>
-                <input
+                <Input
                   type="tel"
                   value={newStaffPhone}
                   onChange={(e) => setNewStaffPhone(e.target.value)}
                   placeholder="06XXXXXXXX"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  className="text-xs"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">{p.staffEmail}</label>
-                <input
+                <Input
                   type="email"
                   value={newStaffEmail}
                   onChange={(e) => setNewStaffEmail(e.target.value)}
                   placeholder="collaborateur@cabinet.ma"
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                  className="text-xs"
                 />
               </div>
 
               <div>
                 <label className="block text-xs font-bold text-slate-700 mb-1">{p.staffRole}</label>
-                <select
+                <Select
                   value={newStaffRole}
                   onChange={(e) => setNewStaffRole(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden bg-white"
+                  className="text-xs bg-white"
                 >
                   {roles.map((r) => (
                     <option key={r.id} value={r.id}>
                       {currentLang === 'FR' ? r.roleNameFr : r.roleNameAr}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowAddStaffModal(false)}
-                  className="px-4 py-2 text-xs font-semibold text-slate-500"
-                >
+                <Button type="button" variant="ghost" size="sm" onClick={() => setShowAddStaffModal(false)}>
                   Annuler
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition"
-                >
+                </Button>
+                <Button type="submit" size="sm">
                   Ajouter
-                </button>
+                </Button>
               </div>
             </form>
           </div>

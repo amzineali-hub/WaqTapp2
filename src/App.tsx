@@ -37,6 +37,7 @@ import {
   sendBrowserNotification,
 } from './utils/appointmentAlerts';
 import { ShieldCheck, Zap, LogOut, Loader2, ShieldAlert } from 'lucide-react';
+import { Button, Card, Badge } from './components/ui';
 
 export const App: React.FC = () => {
   const [currentLang, setCurrentLang] = useState<Language>('FR');
@@ -247,8 +248,9 @@ export const App: React.FC = () => {
       />
 
       {/* Demo Mode Notice Banner */}
-      <div className="bg-teal-700 text-white text-xs py-2 px-3 sm:px-4 shadow-inner">
-        <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
+      <div className="relative overflow-hidden bg-gradient-to-r from-teal-800 to-teal-700 text-white text-xs py-2 px-3 sm:px-4 shadow-inner">
+        <div className="absolute inset-0 pattern-zellige pointer-events-none" aria-hidden="true" />
+        <div className="relative max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
           <div className="flex items-center gap-2 font-medium">
             <Zap className="w-4 h-4 text-amber-300 shrink-0" />
             <span className="leading-snug">
@@ -257,7 +259,7 @@ export const App: React.FC = () => {
                 : "الفضاء المخصص للمواطنين مفتوح بدون تسجيل. يتطلب فضاءا المهني والإدارة إنشاء حساب."}
             </span>
           </div>
-          <div className="flex items-center gap-1 text-[11px] text-teal-100 bg-teal-800/60 px-2.5 py-0.5 rounded-full border border-teal-600/60 shrink-0">
+          <div className="flex items-center gap-1 text-[11px] text-teal-100 bg-teal-900/50 px-2.5 py-0.5 rounded-full border border-teal-600/60 shrink-0">
             <ShieldCheck className="w-3.5 h-3.5 text-teal-300" />
             <span>{currentLang === 'FR' ? 'Connecté à Supabase' : 'متصل بقاعدة البيانات'}</span>
           </div>
@@ -292,13 +294,10 @@ export const App: React.FC = () => {
               ) : (
                 <div className="space-y-4">
                   <div className="flex justify-end">
-                    <button
-                      onClick={handleSignOut}
-                      className="text-xs font-bold text-slate-500 hover:text-red-600 flex items-center gap-1.5"
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:text-rose-600">
                       <LogOut className="w-3.5 h-3.5" />
                       {currentLang === 'FR' ? 'Se déconnecter' : 'تسجيل الخروج'}
-                    </button>
+                    </Button>
                   </div>
                   <ProfessionalView
                     currentPro={myProfessional}
@@ -319,30 +318,24 @@ export const App: React.FC = () => {
               !sessionChecked ? null : !session ? (
                 <AuthGate currentLang={currentLang} context="ADMIN" onAuthenticated={() => {}} />
               ) : !isAdmin ? (
-                <div className="max-w-sm mx-auto mt-10 p-6 bg-white rounded-2xl border border-slate-200 shadow-xs text-center space-y-3">
-                  <ShieldAlert className="w-10 h-10 mx-auto text-red-500" />
+                <Card padding="lg" className="max-w-sm mx-auto mt-10 text-center space-y-3">
+                  <ShieldAlert className="w-10 h-10 mx-auto text-rose-500" />
                   <p className="text-sm text-slate-700 font-medium">
                     {currentLang === 'FR'
                       ? "Ce compte n'a pas les droits d'administration."
                       : "هذا الحساب لا يملك صلاحيات الإدارة."}
                   </p>
-                  <button
-                    onClick={handleSignOut}
-                    className="text-xs font-bold text-slate-500 hover:text-red-600 underline"
-                  >
+                  <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:text-rose-600 underline">
                     {currentLang === 'FR' ? 'Se déconnecter' : 'تسجيل الخروج'}
-                  </button>
-                </div>
+                  </Button>
+                </Card>
               ) : (
                 <div className="space-y-4">
                   <div className="flex justify-end">
-                    <button
-                      onClick={handleSignOut}
-                      className="text-xs font-bold text-slate-500 hover:text-red-600 flex items-center gap-1.5"
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleSignOut} className="hover:text-rose-600">
                       <LogOut className="w-3.5 h-3.5" />
                       {currentLang === 'FR' ? 'Se déconnecter' : 'تسجيل الخروج'}
-                    </button>
+                    </Button>
                   </div>
                   <AdminDirectoryView
                     professionals={professionals}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Briefcase } from 'lucide-react';
 import { Language } from '../utils/translations';
 import { SectorType } from '../types';
+import { Button, Card, Input, Select } from './ui';
 
 interface CreateProfessionalFormProps {
   currentLang: Language;
@@ -57,7 +58,7 @@ export const CreateProfessionalForm: React.FC<CreateProfessionalFormProps> = ({ 
   };
 
   return (
-    <div className="max-w-lg mx-auto mt-6 p-6 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-4">
+    <Card padding="lg" className="max-w-lg mx-auto mt-6 space-y-4">
       <div className="text-center space-y-1">
         <Briefcase className="w-8 h-8 mx-auto text-teal-600" />
         <h3 className="font-bold text-slate-900">
@@ -71,61 +72,48 @@ export const CreateProfessionalForm: React.FC<CreateProfessionalFormProps> = ({ 
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-3">
-        <input
+        <Input
           required
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder={isFr ? 'Nom / Nom du cabinet' : 'الاسم / اسم المكتب'}
-          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
         />
-        <select
-          value={sector}
-          onChange={(e) => setSector(e.target.value as Exclude<SectorType, 'ALL'>)}
-          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white"
-        >
+        <Select value={sector} onChange={(e) => setSector(e.target.value as Exclude<SectorType, 'ALL'>)}>
           {Object.entries(SECTOR_LABELS).map(([key, label]) => (
             <option key={key} value={key}>{label.fr}</option>
           ))}
-        </select>
-        <input
+        </Select>
+        <Input
           required
           value={titleFr}
           onChange={(e) => setTitleFr(e.target.value)}
           placeholder={isFr ? 'Titre / Spécialité (ex: Cardiologue)' : 'اللقب / التخصص'}
-          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
         />
-        <input
+        <Input
           required
           value={city}
           onChange={(e) => setCity(e.target.value)}
           placeholder={isFr ? 'Ville' : 'المدينة'}
-          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
         />
-        <input
+        <Input
           required
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
           placeholder={isFr ? 'Téléphone' : 'الهاتف'}
-          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
         />
-        <input
+        <Input
           required
           type="number"
           min={0}
           value={fees}
           onChange={(e) => setFees(e.target.value)}
           placeholder={isFr ? 'Tarif de la consultation (DH)' : 'ثمن الاستشارة (درهم)'}
-          className="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm"
         />
 
-        <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-2.5 bg-teal-600 hover:bg-teal-700 disabled:opacity-60 text-white text-sm font-bold rounded-xl shadow-xs"
-        >
+        <Button type="submit" fullWidth loading={loading}>
           {loading ? (isFr ? 'Création...' : 'جارٍ الإنشاء...') : (isFr ? 'Créer ma fiche' : 'إنشاء بطاقتي')}
-        </button>
+        </Button>
       </form>
-    </div>
+    </Card>
   );
 };

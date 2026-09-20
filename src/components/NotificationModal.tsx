@@ -2,6 +2,7 @@ import React from 'react';
 import { X, Bell, Check, Trash2, CheckCircle2 } from 'lucide-react';
 import { AppNotification } from '../types';
 import { Language, translations } from '../utils/translations';
+import { Button } from './ui';
 
 interface NotificationModalProps {
   notifications: AppNotification[];
@@ -78,20 +79,14 @@ export const NotificationModal: React.FC<NotificationModalProps> = ({
         {/* Footer Actions */}
         {notifications.length > 0 && (
           <div className="p-3 bg-slate-50 border-t border-slate-200 flex items-center justify-between text-xs shrink-0">
-            <button
-              onClick={onMarkAllAsRead}
-              className="flex items-center gap-1 text-teal-700 hover:text-teal-900 font-semibold transition py-1.5 px-2 rounded-lg touch-manipulation min-h-[36px]"
-            >
+            <Button variant="ghost" size="sm" onClick={onMarkAllAsRead} className="text-teal-700 hover:text-teal-900">
               <Check className="w-3.5 h-3.5" />
               {t.notifications.markAllRead}
-            </button>
-            <button
-              onClick={onClearAll}
-              className="flex items-center gap-1 text-rose-600 hover:text-rose-800 font-semibold transition py-1.5 px-2 rounded-lg touch-manipulation min-h-[36px]"
-            >
+            </Button>
+            <Button variant="ghost" size="sm" onClick={onClearAll} className="text-rose-600 hover:text-rose-800">
               <Trash2 className="w-3.5 h-3.5" />
               {t.notifications.clearAll}
-            </button>
+            </Button>
           </div>
         )}
 

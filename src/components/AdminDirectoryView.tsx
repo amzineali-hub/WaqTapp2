@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Database, Sparkles, Upload, Edit3, Save, CheckCircle, Trash2, ArrowRight } from 'lucide-react';
 import { Professional, SectorType } from '../types';
 import { Language, translations } from '../utils/translations';
+import { Button, Card, Badge, Input, Select, Textarea } from './ui';
 
 interface AdminDirectoryViewProps {
   professionals: Professional[];
@@ -208,7 +209,7 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
       )}
 
       {/* SECTION 1: Dynamic Directory Importer */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <Card padding="md" className="space-y-4">
         <div>
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-teal-50 text-teal-700">
@@ -229,51 +230,47 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 {a.targetSector}
               </label>
-              <select
+              <Select
                 value={targetSector}
                 onChange={(e) => setTargetSector(e.target.value as SectorType)}
-                className="w-full px-3 py-2 border border-slate-200 rounded-xl text-xs bg-slate-50 font-semibold text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+                className="text-xs font-semibold text-slate-800"
               >
                 <option value="ADMIN">📜 Notaire & Adoul (التوثيق والعدول)</option>
                 <option value="HEALTH">🩺 Santé & Médecins (الصحة والأطباء)</option>
                 <option value="BEAUTY">✨ Beauté & Salons (الجمال والراحة)</option>
                 <option value="AUTO">🚗 Mécanique & Auto (السيارات)</option>
                 <option value="ARTISAN">🔧 Artisans & Travaux (الحرف والأعمال)</option>
-              </select>
+              </Select>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-700 mb-1">
                 {a.rawTextLabel}
               </label>
-              <textarea
+              <Textarea
                 rows={6}
                 value={rawText}
                 onChange={(e) => setRawText(e.target.value)}
                 placeholder={a.rawTextPlaceholder}
-                className="w-full p-3 bg-slate-50 border border-slate-200 rounded-xl text-xs font-mono focus:ring-2 focus:ring-teal-500 focus:outline-hidden focus:bg-white transition"
+                className="text-xs font-mono"
               />
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={parseRawText}
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center gap-1.5"
-              >
+              <Button size="sm" onClick={parseRawText}>
                 <Sparkles className="w-3.5 h-3.5" />
                 {a.parseBtn}
-              </button>
-              <button
-                type="button"
+              </Button>
+              <Button
+                variant="secondary"
+                size="sm"
                 onClick={() => {
                   setRawText('');
                   setParsedItems([]);
                 }}
-                className="px-3 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold text-xs rounded-xl transition"
               >
                 {a.clearBtn}
-              </button>
+              </Button>
             </div>
           </div>
 
@@ -285,9 +282,7 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
                   {a.detectedPros} ({parsedItems.length})
                 </span>
                 {parsedItems.length > 0 && (
-                  <span className="text-[10px] bg-teal-100 text-teal-800 font-bold px-2 py-0.5 rounded-full">
-                    Prêt à importer
-                  </span>
+                  <Badge variant="primary" size="sm">Prêt à importer</Badge>
                 )}
               </div>
 
@@ -315,22 +310,18 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
             </div>
 
             {parsedItems.length > 0 && (
-              <button
-                type="button"
-                onClick={handleBatchImport}
-                className="w-full mt-3 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs rounded-xl shadow-xs transition flex items-center justify-center gap-2"
-              >
+              <Button variant="success" fullWidth onClick={handleBatchImport} className="mt-3">
                 <CheckCircle className="w-4 h-4" />
                 {a.importBtn} ({parsedItems.length})
-              </button>
+              </Button>
             )}
           </div>
 
         </div>
-      </div>
+      </Card>
 
       {/* SECTION 2: Live Professional Data Editor */}
-      <div className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <Card padding="md" className="space-y-4">
         <div className="flex items-center gap-2">
           <div className="p-2 rounded-xl bg-amber-50 text-amber-700">
             <Edit3 className="w-5 h-5" />
@@ -346,17 +337,17 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
         {/* Dropdown to select professional */}
         <div className="max-w-md">
           <label className="block text-xs font-bold text-slate-700 mb-1">{a.selectPro}</label>
-          <select
+          <Select
             value={selectedProId}
             onChange={(e) => handleSelectProChange(e.target.value)}
-            className="w-full px-3 py-2.5 border border-slate-200 bg-slate-50 rounded-xl text-xs font-bold text-slate-800 focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+            className="text-xs font-bold text-slate-800"
           >
             {professionals.map((p) => (
               <option key={p.id} value={p.id}>
                 {p.name} ({p.city} - {p.sectorFr})
               </option>
             ))}
-          </select>
+          </Select>
         </div>
 
         {/* Edit Form */}
@@ -364,105 +355,102 @@ export const AdminDirectoryView: React.FC<AdminDirectoryViewProps> = ({
           
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.nameLabel}</label>
-            <input
+            <Input
               type="text"
               required
               value={editName}
               onChange={(e) => setEditName(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.phoneLabel}</label>
-            <input
+            <Input
               type="tel"
               required
               value={editPhone}
               onChange={(e) => setEditPhone(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.titleFrLabel}</label>
-            <input
+            <Input
               type="text"
               value={editTitleFr}
               onChange={(e) => setEditTitleFr(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.titleArLabel}</label>
-            <input
+            <Input
               type="text"
               value={editTitleAr}
               dir="rtl"
               onChange={(e) => setEditTitleAr(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.addressFrLabel}</label>
-            <input
+            <Input
               type="text"
               value={editAddressFr}
               onChange={(e) => setEditAddressFr(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.addressArLabel}</label>
-            <input
+            <Input
               type="text"
               value={editAddressAr}
               dir="rtl"
               onChange={(e) => setEditAddressAr(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.cityLabel}</label>
-            <select
+            <Select
               value={editCity}
               onChange={(e) => setEditCity(e.target.value)}
-              className="w-full px-3 py-2 border border-slate-300 bg-white rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs bg-white"
             >
               <option value="Casablanca">Casablanca</option>
               <option value="Rabat">Rabat</option>
               <option value="Marrakech">Marrakech</option>
               <option value="Tanger">Tanger</option>
               <option value="Fès">Fès</option>
-            </select>
+            </Select>
           </div>
 
           <div>
             <label className="block text-xs font-bold text-slate-700 mb-1">{a.feesLabel}</label>
-            <input
+            <Input
               type="number"
               value={editFees}
               onChange={(e) => setEditFees(Number(e.target.value))}
-              className="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs focus:ring-2 focus:ring-teal-500 focus:outline-hidden"
+              className="text-xs"
             />
           </div>
 
           <div className="sm:col-span-2 flex justify-end pt-2">
-            <button
-              type="submit"
-              className="px-5 py-2.5 bg-teal-600 hover:bg-teal-700 text-white font-bold text-xs rounded-xl shadow-md shadow-teal-600/20 transition flex items-center gap-2"
-            >
+            <Button type="submit">
               <Save className="w-4 h-4" />
               {a.saveChanges}
-            </button>
+            </Button>
           </div>
 
         </form>
-      </div>
+      </Card>
 
     </div>
   );
